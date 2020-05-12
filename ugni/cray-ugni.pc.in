@@ -1,0 +1,8 @@
+Cflags: -I@CMAKE_INSTALL_INCLUDEDIR@
+Description: User-level Gemini Network Interface
+Libs: -L@CMAKE_INSTALL_LIBDIR@ -lugni
+Libs.private: -lpthread
+Name: cray-ugni
+Requires: cray-gni-headers
+Version: 6.0.14
+
