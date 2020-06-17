@@ -1151,6 +1151,7 @@ DIRECT_FN STATIC ssize_t sstmac_sep_trecvmsg(struct fid_ep *ep,
 	return _ep_recvmsg(&rx_ep->ep->ep_fid, &_msg, flags | FI_TAGGED,
 			   msg->tag, msg->ignore);
 #endif
+  return 0;
 }
 
 DIRECT_FN STATIC ssize_t sstmac_sep_tsend(struct fid_ep *ep, const void *buf,
@@ -1165,6 +1166,7 @@ DIRECT_FN STATIC ssize_t sstmac_sep_tsend(struct fid_ep *ep, const void *buf,
 	return _ep_send(&tx_ep->ep->ep_fid, buf, len, desc, dest_addr,
 			context, FI_TAGGED, tag);
 #endif
+  return 0;
 }
 
 DIRECT_FN STATIC ssize_t sstmac_sep_tsendv(struct fid_ep *ep,
@@ -1180,6 +1182,7 @@ DIRECT_FN STATIC ssize_t sstmac_sep_tsendv(struct fid_ep *ep,
 	return _ep_sendv(&tx_ep->ep->ep_fid, iov, desc, count, dest_addr,
 			 context, FI_TAGGED, tag);
 #endif
+  return 0;
 }
 
 DIRECT_FN STATIC ssize_t sstmac_sep_tsendmsg(struct fid_ep *ep,
@@ -1249,6 +1252,7 @@ DIRECT_FN STATIC ssize_t sstmac_sep_tinjectdata(struct fid_ep *ep,
 	return _ep_inject(&tx_ep->ep->ep_fid, buf, len, data, dest_addr,
 			  FI_TAGGED | FI_REMOTE_CQ_DATA, tag);
 #endif
+  return 0;
 }
 
 DIRECT_FN STATIC ssize_t

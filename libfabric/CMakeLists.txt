@@ -11,7 +11,6 @@ set(sstmac_sources
   prov/sstmac/src/sstmac_poll.cc
   prov/sstmac/src/sstmac_sep.cc
   prov/sstmac/src/sstmac_wait.cc
-  prov/sstmac/src/sstmac_xpmem.cc
 )
 
 set(sstmac_headers
@@ -38,15 +37,22 @@ set(sstmac_rdma_headers
 )
 
 set(common_sources
-	src/common.c
-	src/enosys.c
-	src/rbtree.c
-	src/tree.c
-	src/fasthash.c
-	src/indexer.c
-	src/mem.c
-	src/iov.c
-	src/shared/ofi_str.c
+  src/log.c
+  src/common.c
+  src/rbtree.c
+  src/indexer.c
+  src/perf.c
+  src/mem.c
+  src/iov.c
+  src/shared/ofi_str.c
+  src/abi_1_0.c
+  src/unix/osd.c
+  src/enosys.c
+  src/fabric.c
+  src/fasthash.c
+  src/var.c
+  src/fi_tostr.c
+  src/tree.c
 	prov/util/src/util_atomic.c
 	prov/util/src/util_attr.c
 	prov/util/src/util_av.c
@@ -81,6 +87,7 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
   list(APPEND common_sources
     src/unix/osd.c
     src/linux/osd.c
+    src/linux/rdpmc.c
     include/linux/rdpmc.h
     include/linux/osd.h
     include/unix/osd.h)
@@ -93,22 +100,16 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
 endif()
 
 set(libfabric_sources
-	src/fabric.c
-	src/fi_tostr.c
-	src/perf.c
-	src/log.c
-	src/var.c
-	src/abi_1_0.c
-	prov/hook/src/hook.c
-	prov/hook/src/hook_av.c
-	prov/hook/src/hook_cm.c
-	prov/hook/src/hook_cntr.c
-	prov/hook/src/hook_cq.c
-	prov/hook/src/hook_domain.c
-	prov/hook/src/hook_ep.c
-	prov/hook/src/hook_eq.c
-	prov/hook/src/hook_wait.c
-	prov/hook/src/hook_xfer.c
+  prov/hook/src/hook_cm.c
+  prov/hook/src/hook_cq.c
+  prov/hook/src/hook_xfer.c
+  prov/hook/src/hook_ep.c
+  prov/hook/src/hook_cntr.c
+  prov/hook/src/hook_av.c
+  prov/hook/src/hook.c
+  prov/hook/src/hook_wait.c
+  prov/hook/src/hook_domain.c
+  prov/hook/src/hook_eq.c
 )
 
 set(libfabric_headers
@@ -147,7 +148,6 @@ set(libfabric_headers
 	include/rdma/providers/fi_prov.h
 )
 
-
 set(rdmainclude_headers
 	prov/sstmac/include/fi_ext_sstmac.h
 	include/rdma/fabric.h
@@ -176,31 +176,33 @@ set(nodist_rdmainclude_headers
 	prov/sstmac/include/rdma/fi_direct.h
 )
 
-add_library(libfabric
+add_library(fabric SHARED
   ${sstmac_sources}
   ${sstmac_headers}
   ${common_sources} 
-  ${libfabrics_sources} 
+  ${libfabric_sources}
   ${libfabric_headers}
   ${rdmainclude_headers}
   ${nodist_rdmainclude_headers}
   ${sstmac_rdma_headers}
 )
+target_link_libraries(fabric PRIVATE SST::SSTMacro)
 
 include(GNUInstallDirs)
-target_compile_definitions(libfabric PRIVATE
+target_compile_definitions(fabric PRIVATE
 	-D_GNU_SOURCE -D__USE_XOPEN2K8 
-	-DSYSCONFDIR=${SYSCONFDIR}
+	-DSYSCONFDIR=${CMAKE_INSTALL_SYSCONFDIR}
 	-DRDMADIR
-	-DPROVDLDIR=${LIBDIR}/libfabric
+	-DPROVDLDIR=\"${CMAKE_INSTALL_LIBDIR}/libfabric\"
 )
-target_include_directories(libfabric PUBLIC
+target_include_directories(fabric PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
-target_include_directories(libfabric PRIVATE
+target_include_directories(fabric PRIVATE
   ${CMAKE_CURRENT_BINARY_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}/prov/sstmac
   ${CMAKE_CURRENT_SOURCE_DIR}/prov/sstmac/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/prov/hook/include
 )
 
 set(BUILD_ID)
@@ -213,5 +215,6 @@ include(cmake/tests.cmake)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config.h.in ${CMAKE_CURRENT_BINARY_DIR}/config.h @ONLY)
 
 install(FILES ${libfabric_headers}
-  DESTINATION ${INCLUDEDIR}
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
+install(TARGETS fabric LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})

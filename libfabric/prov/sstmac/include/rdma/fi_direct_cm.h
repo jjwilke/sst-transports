@@ -40,68 +40,68 @@
 /*******************************************************************************
  * GNI API Functions
  ******************************************************************************/
-extern int gnix_setname(fid_t fid, void *addr, size_t addrlen);
+extern int sstmac_setname(fid_t fid, void *addr, size_t addrlen);
 
-extern int gnix_getname(fid_t fid, void *addr, size_t *addrlen);
+extern int sstmac_getname(fid_t fid, void *addr, size_t *addrlen);
 
-extern int gnix_getpeer(struct fid_ep *ep, void *addr, size_t *addrlen);
+extern int sstmac_getpeer(struct fid_ep *ep, void *addr, size_t *addrlen);
 
-extern int gnix_listen(struct fid_pep *pep);
+extern int sstmac_listen(struct fid_pep *pep);
 
-extern int gnix_connect(struct fid_ep *ep, const void *addr, const void *param,
+extern int sstmac_connect(struct fid_ep *ep, const void *addr, const void *param,
 			size_t paramlen);
 
-extern int gnix_accept(struct fid_ep *ep, const void *param, size_t paramlen);
+extern int sstmac_accept(struct fid_ep *ep, const void *param, size_t paramlen);
 
-extern int gnix_reject(struct fid_pep *pep, fid_t handle, const void *param,
+extern int sstmac_reject(struct fid_pep *pep, fid_t handle, const void *param,
 		       size_t paramlen);
 
-extern int gnix_shutdown(struct fid_ep *ep, uint64_t flags);
+extern int sstmac_shutdown(struct fid_ep *ep, uint64_t flags);
 
 /*******************************************************************************
  * Libfabric API Functions
  ******************************************************************************/
 static inline int fi_setname(fid_t fid, void *addr, size_t addrlen)
 {
-	return gnix_setname(fid, addr, addrlen);
+	return sstmac_setname(fid, addr, addrlen);
 }
 
 static inline int fi_getname(fid_t fid, void *addr, size_t *addrlen)
 {
-	return gnix_getname(fid, addr, addrlen);
+	return sstmac_getname(fid, addr, addrlen);
 }
 
 static inline int fi_getpeer(struct fid_ep *ep, void *addr, size_t *addrlen)
 {
-	return gnix_getpeer(ep, addr, addrlen);
+	return sstmac_getpeer(ep, addr, addrlen);
 }
 
 static inline int fi_listen(struct fid_pep *pep)
 {
-	return gnix_listen(pep);
+	return sstmac_listen(pep);
 }
 
 static inline int fi_connect(struct fid_ep *ep, const void *addr,
 			     const void *param, size_t paramlen)
 {
-	return gnix_connect(ep, addr, param, paramlen);
+	return sstmac_connect(ep, addr, param, paramlen);
 }
 
 static inline int fi_accept(struct fid_ep *ep, const void *param,
 			    size_t paramlen)
 {
-	return gnix_accept(ep, param, paramlen);
+	return sstmac_accept(ep, param, paramlen);
 }
 
 static inline int fi_reject(struct fid_pep *pep, fid_t handle,
 			    const void *param, size_t paramlen)
 {
-	return gnix_reject(pep, handle, param, paramlen);
+	return sstmac_reject(pep, handle, param, paramlen);
 }
 
 static inline int fi_shutdown(struct fid_ep *ep, uint64_t flags)
 {
-	return gnix_shutdown(ep, flags);
+	return sstmac_shutdown(ep, flags);
 }
 
 #endif /* _FI_DIRECT_CM_H_ */

@@ -1085,7 +1085,7 @@ sstmac_ep_atomic_writev(struct fid_ep *ep, const struct fi_ioc *iov, void **desc
 	if (!iov || count > 1) {
 		return -FI_EINVAL;
 	}
-
+#endif
 	return sstmac_ep_atomic_write(ep, iov[0].addr, iov[0].count,
 				    desc ? desc[0] : NULL,
 				    dest_addr, addr, key, datatype, op,
@@ -1096,6 +1096,7 @@ DIRECT_FN STATIC ssize_t
 sstmac_ep_atomic_writemsg(struct fid_ep *ep, const struct fi_msg_atomic *msg,
 			uint64_t flags)
 {
+#if 0
 	struct sstmac_fid_ep *sstmac_ep;
 
 	if (sstmac_ep_atomic_valid(ep, msg->datatype, msg->op, NULL))

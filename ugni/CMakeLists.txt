@@ -1,10 +1,11 @@
 include(GNUInstallDirs)
 
-add_sstmac_library(ugni
+add_library(ugni SHARED
   libpmi.cc
   libugni.cc
   libibverbs.c
 )
+target_link_libraries(ugni PRIVATE SST::SSTMacro)
 
 install(FILES
   gni_pub.h

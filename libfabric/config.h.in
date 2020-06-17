@@ -68,3 +68,12 @@
 
 /* hook_debug provider is built as DSO */
 #undef HAVE_HOOK_DEBUG_DL
+
+#define PACKAGE "libfabric"
+
+/* Version number of package */
+#define VERSION "1.10.0a1"
+
+#define PACKAGE_VERSION "1.10.0a1"
+
+#define BUILD_ID ""

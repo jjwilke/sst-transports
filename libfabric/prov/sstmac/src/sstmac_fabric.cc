@@ -198,23 +198,155 @@ static int sstmac_fabric_open(struct fi_fabric_attr *attr,
 
 const char sstmac_fab_name[] = "sstmac";
 const char sstmac_dom_name[] = "sstmac";
-const char sstmac_prov_name[] = "sstmac";
 
 static void sstmac_fini(void)
 {
 }
 
+#define SSTMAC_EP_CAPS   \
+  FI_MSG | FI_RMA | FI_TAGGED | FI_ATOMICS | \
+  FI_DIRECTED_RECV | FI_READ | FI_NAMED_RX_CTX | \
+  FI_WRITE | FI_SEND | FI_RECV | FI_REMOTE_READ | FI_REMOTE_WRITE)
+
+#define SSTMAC_DOM_CAPS \
+  FI_LOCAL_COMM | FI_REMOTE_COMM | FI_SHARED_AV
+
+#define SSTMAC_MAX_MSG_SIZE 1<<62
+
+
+static struct fi_info *sstmac_allocinfo(void)
+{
+  struct fi_info *sstmac_info;
+
+  sstmac_info = fi_allocinfo();
+  if (sstmac_info == NULL) {
+    return NULL;
+  }
+
+  sstmac_info->caps = SSTMAC_EP_PRIMARY_CAPS;
+  sstmac_info->tx_attr->op_flags = 0;
+  sstmac_info->rx_attr->op_flags = 0;
+  sstmac_info->ep_attr->type = FI_EP_RDM;
+  sstmac_info->ep_attr->protocol = FI_PROTO_SSTMAC;
+  sstmac_info->ep_attr->max_msg_size = SSTMAC_MAX_MSG_SIZE;
+  sstmac_info->ep_attr->mem_tag_format = FI_TAG_GENERIC;
+  sstmac_info->ep_attr->tx_ctx_cnt = 1;
+  sstmac_info->ep_attr->rx_ctx_cnt = 1;
+
+
+  sstmac_info->domain_attr->name = strdup("sstmac");
+  sstmac_info->domain_attr->threading = FI_THREAD_SAFE;
+  sstmac_info->domain_attr->control_progress = FI_PROGRESS_AUTO;
+  sstmac_info->domain_attr->data_progress = FI_PROGRESS_AUTO;
+  sstmac_info->domain_attr->av_type = FI_AV_TABLE;
+
+  //says the applicatoin is protected from buffer overruns on things like CQs
+  //this is always true in SSTMAC since we push back on dynamic bufers
+  sstmac_info->domain_attr->resource_mgmt = FI_RM_ENABLED;
+
+  //compatibility enum, basically just says that you need to request via full virtual addr,
+  //that memory regions must be allocated (backed by phsical pages), and that keys are allocated by provider
+  sstmac_info->domain_attr->mr_mode = FI_MR_BASIC;
+
+  //the size of the mr_key, just make it 64-bit for now
+  sstmac_info->domain_attr->mr_key_size = sizeof(uint64_t);
+  //the size of the data written to completion queues as part of an event, make 64-bit for now
+  sstmac_info->domain_attr->cq_data_size = sizeof(uint64_t);
+  //just set to a big number - the maximum number of completion queues
+  sstmac_info->domain_attr->cq_cnt = 1000;
+  //set to largest possible 32-bit number - the maxmimum number of endpoints
+  sstmac_info->domain_attr->ep_cnt = std::numeric_limits<uint32_t>::max();
+  //just set to a big number - the maximnum number of tx contexts that can be handled
+  sstmac_info->domain_attr->tx_ctx_cnt = 1000;
+  //just set to a big number - the maximum number of tx contexts that can be handled
+  sstmac_info->domain_attr->rx_ctx_cnt = 1000;
+  //just set to a big number
+  sstmac_info->domain_attr->max_ep_tx_ctx = 1000;
+  sstmac_info->domain_attr->max_ep_rx_ctx = 1000;
+  sstmac_info->domain_attr->max_ep_stx_ctx = 1000;
+  sstmac_info->domain_attr->max_ep_srx_ctx = 1000;
+  //just set to a big number - the maximum number of different completion counters
+  sstmac_info->domain_attr->cntr_cnt = 1000;
+  //we don't really do anything with mr_iov, so allow a big number
+  sstmac_info->domain_attr->mr_iov_limit = 10000;
+  //we support everything - send local, send remote, share av tables
+  sstmac_info->domain_attr->caps = SSTMAC_DOM_CAPS;
+  //we place no restrictions on domains having the exact same capabilities to communicate
+  sstmac_info->domain_attr->mode = 0;
+  //we don't really do anything with keys, so...
+  sstmac_info->domain_attr->auth_key = 0;
+  sstmac_info->domain_attr->max_err_data = sizeof(uint64_t);
+  //we have no limit on the number of memory regions
+  sstmac_info->domain_attr->mr_cnt = std::numeric_limits<uint32_t>::max();
+
+
+
+  sstmac_info->next = NULL;
+  sstmac_info->addr_format = FI_ADDR_GNI;
+  sstmac_info->src_addrlen = sizeof(struct sstmac_ep_name);
+  sstmac_info->dest_addrlen = sizeof(struct sstmac_ep_name);
+  sstmac_info->src_addr = NULL;
+  sstmac_info->dest_addr = NULL;
+
+#if 0
+  sstmac_info->tx_attr->msg_order = FI_ORDER_SAS;
+  sstmac_info->tx_attr->comp_order = FI_ORDER_NONE;
+  sstmac_info->tx_attr->size = GNIX_TX_SIZE_DEFAULT;
+  sstmac_info->tx_attr->iov_limit = GNIX_MAX_MSG_IOV_LIMIT;
+  sstmac_info->tx_attr->inject_size = GNIX_INJECT_SIZE;
+  sstmac_info->tx_attr->rma_iov_limit = GNIX_MAX_RMA_IOV_LIMIT;
+  sstmac_info->rx_attr->msg_order = FI_ORDER_SAS;
+  sstmac_info->rx_attr->comp_order = FI_ORDER_NONE;
+  sstmac_info->rx_attr->size = GNIX_RX_SIZE_DEFAULT;
+  sstmac_info->rx_attr->iov_limit = GNIX_MAX_MSG_IOV_LIMIT;
+#endif
+  return sstmac_info;
+}
+
 
 static int sstmac_getinfo(uint32_t version, const char *node, const char *service,
       uint64_t flags, const struct fi_info *hints,
-      struct fi_info **info)
+      struct fi_info **info_ptr)
 {
-  //TODO
+  fi_info* info = new fi_info;
+  uint64_t init_caps = hints ? hints->caps : 0;
+  info->caps = init_caps & (
+      FI_ATOMIC
+      // & FI_DIRECTED_RECV TOOD
+      // & FI_FENCE TODO
+      | FI_HMEM
+      | FI_LOCAL_COMM
+      | FI_MSG
+      // & FI_MULTICAST TODO
+      // & FI_MULTI_RECV TODO
+      // & FI_NAMED_RX_CTX TODO
+      | FI_READ
+      | FI_RECV
+      | FI_REMOTE_COMM
+      | FI_REMOTE_READ
+      | FI_REMOTE_WRITE
+      | FI_RMA
+      | FI_RMA_EVENT
+      // & FI_RMA_MEM TODO
+      | FI_SEND
+      | FI_SHARED_AV
+      // & FI_SOURCE TODO
+      // & FI_SOURCE_ERR TODO
+      | FI_TAGGED
+      | FI_TRIGGER
+      // & FI_VARIABLE_MSG TODO
+      | FI_WRITE
+  );
+  info->mode = 0;
+  if (hints->mode){
+    uint64_t clear = FI_ASYNC_IOV | FI_MSG_PREFIX | FI_RX_CQ_DATA;
+    //info->mode = hints->mode & ~clear;
+  }
   return 0;
 }
 
 struct fi_provider sstmac_prov = {
-	.name = sstmac_prov_name,
+  .name = "sstmac",
 	.version = FI_VERSION(SSTMAC_MAJOR_VERSION, SSTMAC_MINOR_VERSION),
 	.fi_version = OFI_VERSION_LATEST,
 	.getinfo = sstmac_getinfo,

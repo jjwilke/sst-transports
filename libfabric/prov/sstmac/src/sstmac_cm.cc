@@ -63,7 +63,7 @@ DIRECT_FN extern "C" int sstmac_pep_open(struct fid_fabric *fabric,
 DIRECT_FN extern "C" int sstmac_pep_bind(struct fid *fid, struct fid *bfid, uint64_t flags);
 DIRECT_FN STATIC extern "C" int sstmac_reject(struct fid_pep *pep, fid_t handle,
 				 const void *param, size_t paramlen);
-DIRECT_FN STATIC extern "C" int sstmac_shutdown(struct fid_ep *ep, uint64_t flags);
+DIRECT_FN STATIC int sstmac_shutdown(struct fid_ep *ep, uint64_t flags);
 DIRECT_FN extern "C" int sstmac_pep_listen(struct fid_pep *pep);
 DIRECT_FN STATIC extern "C" int sstmac_pep_getopt(fid_t fid, int level, int optname,
              void *optval, size_t *optlen);
@@ -601,13 +601,14 @@ err_mbox_alloc:
 	ep_priv->vc = NULL;
 err_unlock:
 	COND_RELEASE(ep_priv->requires_lock, &ep_priv->vc_lock);
-
+#endif
 	return ret;
 }
 
-DIRECT_FN STATIC extern "C" int sstmac_shutdown(struct fid_ep *ep, uint64_t flags)
+DIRECT_FN STATIC int sstmac_shutdown(struct fid_ep *ep, uint64_t flags)
 {
 	int ret;
+#if 0
   struct sstmac_fid_ep *ep_priv;
 	struct fi_eq_cm_entry eq_entry = {0};
 
