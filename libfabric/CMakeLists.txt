@@ -11,6 +11,7 @@ set(sstmac_sources
   prov/sstmac/src/sstmac_poll.cc
   prov/sstmac/src/sstmac_sep.cc
   prov/sstmac/src/sstmac_wait.cc
+  prov/sstmac/src/sstmac_sumi.cpp
 )
 
 set(sstmac_headers

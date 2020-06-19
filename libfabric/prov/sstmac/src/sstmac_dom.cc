@@ -290,159 +290,21 @@ sstmac_domain_ops_open(struct fid *fid, const char *ops_name, uint64_t flags,
 
 
 DIRECT_FN extern "C" int sstmac_domain_open(struct fid_fabric *fabric, struct fi_info *info,
-			       struct fid_domain **dom, void *context)
+             struct fid_domain **dom_ptr, void *context)
 {
-	int ret = FI_SUCCESS;
-#if 0
-	struct sstmac_fid_domain *domain = NULL;
-	struct sstmac_fid_fabric *fabric_priv;
-	struct sstmac_auth_key *auth_key = NULL;
-	int i;
-	int requesting_vmdh = 0;
-
-  SSTMAC_TRACE(FI_LOG_DOMAIN, "\n");
-
-	fabric_priv = container_of(fabric, struct sstmac_fid_fabric, fab_fid);
-
-	if (FI_VERSION_LT(fabric->api_version, FI_VERSION(1, 5)) &&
-		(info->domain_attr->auth_key_size || info->domain_attr->auth_key))
-			return -FI_EINVAL;
-
-	requesting_vmdh = !(info->domain_attr->mr_mode &
-			(FI_MR_BASIC | FI_MR_VIRT_ADDR));
-
-  auth_key = SSTMAC_GET_AUTH_KEY(info->domain_attr->auth_key,
-			info->domain_attr->auth_key_size, requesting_vmdh);
-	if (!auth_key)
-		return -FI_EINVAL;
-
-  SSTMAC_INFO(FI_LOG_DOMAIN,
-		  "authorization key=%p ptag %u cookie 0x%x\n",
-		  auth_key, auth_key->ptag, auth_key->cookie);
-
-	if (auth_key->using_vmdh != requesting_vmdh) {
-    SSTMAC_WARN(FI_LOG_DOMAIN,
-      "SSTMAC provider cannot support multiple "
-			"FI_MR_BASIC and FI_MR_SCALABLE for the same ptag. "
-			"ptag=%d current_mode=%x requested_mode=%x\n",
-			auth_key->ptag,
-			auth_key->using_vmdh, info->domain_attr->mr_mode);
-		return -FI_EINVAL;
-	}
-
-  domain = (sstmac_fid_domain*) calloc(1, sizeof *domain);
-	if (domain == NULL) {
-		ret = -FI_ENOMEM;
-		goto err;
-	}
-
-  domain->mr_cache_info = (sstmac_mr_cache_info*) calloc(sizeof(*domain->mr_cache_info),
-    SSTMAC_NUM_PTAGS);
-	if (!domain->mr_cache_info) {
-		ret = -FI_ENOMEM;
-		goto err;
-	}
-
-	domain->auth_key = auth_key;
-
-	domain->mr_cache_attr = _sstmac_default_mr_cache_attr;
-	domain->mr_cache_attr.reg_context = (void *) domain;
-	domain->mr_cache_attr.dereg_context = NULL;
-	domain->mr_cache_attr.destruct_context = NULL;
-
-	ret = _sstmac_smrn_open(&domain->mr_cache_attr.smrn);
-	if (ret != FI_SUCCESS)
-		goto err;
-
-	fastlock_init(&domain->mr_cache_lock);
-  for (i = 0; i < SSTMAC_NUM_PTAGS; i++) {
-		domain->mr_cache_info[i].inuse = 0;
-		domain->mr_cache_info[i].domain = domain;
-		fastlock_init(&domain->mr_cache_info[i].mr_cache_lock);
-	}
-
-	/*
-	 * we are likely sharing udreg entries with Craypich if we're using udreg
-	 * cache, so ask for only half the entries by default.
-	 */
-	domain->udreg_reg_limit = 2048;
-
-	dlist_init(&domain->nic_list);
-	dlist_init(&domain->list);
-
-	dlist_insert_after(&domain->list, &fabric_priv->domain_list);
-
-	domain->fabric = fabric_priv;
-	_sstmac_ref_get(domain->fabric);
-
-	domain->cdm_id_seed = getpid();  /* TODO: direct syscall better */
-	domain->addr_format = info->addr_format;
-
-	/* user tunables */
-	domain->params.msg_rendezvous_thresh = default_msg_rendezvous_thresh;
-	domain->params.rma_rdma_thresh = default_rma_rdma_thresh;
-	domain->params.ct_init_size = default_ct_init_size;
-	domain->params.ct_max_size = default_ct_max_size;
-	domain->params.ct_step = default_ct_step;
-	domain->params.vc_id_table_capacity = default_vc_id_table_capacity;
-	domain->params.mbox_page_size = default_mbox_page_size;
-	domain->params.mbox_num_per_slab = default_mbox_num_per_slab;
-	domain->params.mbox_maxcredit = default_mbox_maxcredit;
-	domain->params.mbox_msg_maxsize = default_mbox_msg_maxsize;
-	domain->params.rx_cq_size = default_rx_cq_size;
-	domain->params.tx_cq_size = default_tx_cq_size;
-	domain->params.max_retransmits = default_max_retransmits;
-	domain->params.err_inject_count = default_err_inject_count;
-#if HAVE_XPMEM
-	domain->params.xpmem_enabled = true;
-#else
-	domain->params.xpmem_enabled = false;
-#endif
-	domain->params.dgram_progress_timeout = default_dgram_progress_timeout;
-	domain->params.eager_auto_progress = default_eager_auto_progress;
-
-	domain->sstmac_cq_modes = sstmac_def_sstmac_cq_modes;
-	_sstmac_ref_init(&domain->ref_cnt, 1, __domain_destruct);
-
-	domain->domain_fid.fid.fclass = FI_CLASS_DOMAIN;
-	domain->domain_fid.fid.context = context;
-	domain->domain_fid.fid.ops = &sstmac_domain_fi_ops;
-	domain->domain_fid.ops = &sstmac_domain_ops;
-	domain->domain_fid.mr = &sstmac_domain_mr_ops;
-
-	domain->control_progress = info->domain_attr->control_progress;
-	domain->data_progress = info->domain_attr->data_progress;
-	domain->thread_model = info->domain_attr->threading;
-	domain->mr_is_init = 0;
-	domain->mr_iov_limit = info->domain_attr->mr_iov_limit;
-
-	fastlock_init(&domain->cm_nic_lock);
-
-	domain->using_vmdh = requesting_vmdh;
-
-	auth_key->using_vmdh = domain->using_vmdh;
-	_sstmac_auth_key_enable(auth_key);
-	domain->auth_key = auth_key;
-
-	if (!requesting_vmdh) {
-    _sstmac_open_cache(domain, SSTMAC_DEFAULT_CACHE_TYPE);
-	} else {
-    domain->mr_cache_type = SSTMAC_MR_TYPE_NONE;
-    _sstmac_open_cache(domain, SSTMAC_MR_TYPE_NONE);
-	}
-
-	*dom = &domain->domain_fid;
-	return FI_SUCCESS;
-
-err:
-	if (domain && domain->mr_cache_info)
-		free(domain->mr_cache_info);
-
-	if (domain != NULL) {
-		free(domain);
-	}
-#endif
-	return ret;
+  sstmac_fid_domain* domain = (sstmac_fid_domain*) calloc(1, sizeof(sstmac_fid_domain));
+  sstmac_fid_fabric* fabric_impl = (sstmac_fid_fabric*) fabric;
+  //we don't really have to do a ton of work here
+  //memory registration is not an issue
+  //and we always make progress in the background without the app requiring an extra progress thread
+  domain->domain_fid.fid.fclass = FI_CLASS_DOMAIN;
+  domain->domain_fid.fid.context = context;
+  domain->domain_fid.fid.ops = &sstmac_domain_fi_ops;
+  domain->domain_fid.ops = &sstmac_domain_ops;
+  domain->domain_fid.mr = &sstmac_domain_mr_ops;
+  domain->fabric = fabric_impl;
+  *dom_ptr = (fid_domain*) domain;
+  return FI_SUCCESS;
 }
 
 DIRECT_FN extern "C" int sstmac_srx_context(struct fid_domain *domain,

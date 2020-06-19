@@ -1469,6 +1469,8 @@ extern "C" int sstmac_ep_close(fid_t fid)
 DIRECT_FN extern "C" int sstmac_ep_bind(fid_t fid, struct fid *bfid, uint64_t flags)
 {
 	int ret = FI_SUCCESS;
+
+
 #if 0
 	struct sstmac_fid_ep  *ep;
 	struct sstmac_fid_eq *eq;

@@ -79,7 +79,12 @@ Questions? Contact sst-macro-help@sandia.gov
 #include <stdlib.h>
 
 #include "sstmac.h"
+#include "sstmac_wait.h"
 
+#include <vector>
+
+
+#define GNIX_EQ_DEFAULT_SIZE 1000
 
 DIRECT_FN STATIC ssize_t sstmac_eq_read(struct fid_eq *eq, uint32_t *event,
               void *buf, size_t len, uint64_t flags);
@@ -121,80 +126,73 @@ static struct fi_ops sstmac_fi_eq_ops = {
   .ops_open = fi_no_ops_open
 };
 
+struct sstmac_eq_error {};
+struct sstmac_eq_event {};
 
-DIRECT_FN extern "C" int sstmac_eq_open(struct fid_fabric *fabric, struct fi_eq_attr *attr,
-			   struct fid_eq **eq, void *context)
+struct sstmac_fid_eq {
+  struct fid_eq eq_fid;
+  struct sstmac_fid_fabric* fabric;
+  struct fid_wait* wait;
+  struct fi_eq_attr attr;
+  std::vector<sstmac_eq_error> errors;
+  std::vector<sstmac_eq_event> events;
+};
+
+DIRECT_FN extern "C" int sstmac_eq_open(struct fid_fabric *fabric, struct fi_eq_attr *attr, struct fid_eq **eq_ptr, void *context)
 {
-	int ret = FI_SUCCESS;
- #if 0
-  struct sstmac_fid_eq *eq_priv;
-
-	SSTMAC_TRACE(FI_LOG_EQ, "\n");
-
 	if (!fabric)
 		return -FI_EINVAL;
 
-  eq_priv = (sstmac_fid_eq*) calloc(1, sizeof(*eq_priv));
-	if (!eq_priv)
+  struct sstmac_fid_eq *eq = (sstmac_fid_eq*) calloc(1, sizeof(fid_eq));
+  if (!eq)
 		return -FI_ENOMEM;
 
-	ret = sstmac_verify_eq_attr(attr);
-	if (ret)
-		goto err;
+  ErrorDeallocate err(eq, [](void* ptr){
+    auto* eq = (sstmac_fid_eq*) ptr;
+    free(eq);
+  });
 
-	eq_priv->fabric = container_of(fabric, struct sstmac_fid_fabric,
-					  fab_fid);
+  if (!attr)
+    return -FI_EINVAL;
 
-	_sstmac_ref_init(&eq_priv->ref_cnt, 1, __eq_destruct);
+  if (!attr->size)
+    attr->size = GNIX_EQ_DEFAULT_SIZE;
 
-	_sstmac_ref_get(eq_priv->fabric);
+  // Only support FI_WAIT_SET and FI_WAIT_UNSPEC
+  switch (attr->wait_obj) {
+  case FI_WAIT_NONE:
+    break;
+  case FI_WAIT_SET: {
+    if (!attr->wait_set) {
+      //must be given a wait set!
+      return -FI_EINVAL;
+    }
+    eq->wait = attr->wait_set;
+    sstmaci_add_wait(eq->wait, &eq->eq_fid.fid);
+    break;
+  }
+  case FI_WAIT_UNSPEC: {
+    struct fi_wait_attr requested = {
+      .wait_obj = eq->attr.wait_obj,
+      .flags = 0
+    };
+    sstmac_wait_open(&eq->fabric->fab_fid, &requested, &eq->wait);
+    sstmaci_add_wait(eq->wait, &eq->eq_fid.fid);
+    break;
+  }
+  default:
+    return -FI_ENOSYS;
+  }
 
-	eq_priv->eq_fid.fid.fclass = FI_CLASS_EQ;
-	eq_priv->eq_fid.fid.context = context;
-	eq_priv->eq_fid.fid.ops = &sstmac_fi_eq_ops;
-	eq_priv->eq_fid.ops = &sstmac_eq_ops;
-	eq_priv->requires_lock = 1;
-	eq_priv->attr = *attr;
+  eq->eq_fid.fid.fclass = FI_CLASS_EQ;
+  eq->eq_fid.fid.context = context;
+  eq->eq_fid.fid.ops = &sstmac_fi_eq_ops;
+  eq->eq_fid.ops = &sstmac_eq_ops;
+  eq->attr = *attr;
 
-	fastlock_init(&eq_priv->lock);
+  *eq_ptr = (fid_eq*) &eq->eq_fid;
 
-	rwlock_init(&eq_priv->poll_obj_lock);
-	dlist_init(&eq_priv->poll_objs);
-
-	dlist_init(&eq_priv->err_bufs);
-
-	ret = sstmac_eq_set_wait(eq_priv);
-	if (ret)
-		goto err1;
-
-	ret = _sstmac_queue_create(&eq_priv->events, alloc_eq_entry,
-				 free_eq_entry, 0, eq_priv->attr.size);
-	if (ret)
-		goto err1;
-
-	ret = _sstmac_queue_create(&eq_priv->errors, alloc_eq_entry,
-				 free_eq_entry, sizeof(struct fi_eq_err_entry),
-				 0);
-	if (ret)
-		goto err2;
-
-	*eq = &eq_priv->eq_fid;
-
-	pthread_mutex_lock(&sstmac_eq_list_lock);
-	dlist_insert_tail(&eq_priv->sstmac_fid_eq_list, &sstmac_eq_list);
-	pthread_mutex_unlock(&sstmac_eq_list_lock);
-
-	return ret;
-
-err2:
-	_sstmac_queue_destroy(eq_priv->events);
-err1:
-	_sstmac_ref_put(eq_priv->fabric);
-	fastlock_destroy(&eq_priv->lock);
-err:
-	free(eq_priv);
-#endif
-	return ret;
+  return FI_SUCCESS;
 }
 
 DIRECT_FN STATIC extern "C" int sstmac_eq_close(struct fid *fid)
@@ -236,11 +234,6 @@ DIRECT_FN STATIC ssize_t sstmac_eq_sread(struct fid_eq *eq, uint32_t *event,
 
 DIRECT_FN STATIC extern "C" int sstmac_eq_control(struct fid *eq, int command, void *arg)
 {
-  /* disabled until new trywait interface is implemented
-  struct sstmac_fid_eq *eq_priv;
-
-  eq_priv = container_of(eq, struct sstmac_fid_eq, eq_fid);
-  */
   switch (command) {
   case FI_GETWAIT:
     /* return _sstmac_get_wait_obj(eq_priv->wait, arg); */

@@ -45,6 +45,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <assert.h>
 
 #include "sstmac.h"
+#include "sstmac_wait.h"
+
+#include <sstmac_sumi.hpp>
 
 static int sstmac_cq_close(fid_t fid);
 static int sstmac_cq_control(struct fid *cq, int command, void *arg);
@@ -94,6 +97,63 @@ static const size_t format_sizes[] = {
 	[FI_CQ_FORMAT_MSG]     = sizeof(struct fi_cq_msg_entry),
 	[FI_CQ_FORMAT_DATA]    = sizeof(struct fi_cq_data_entry),
 	[FI_CQ_FORMAT_TAGGED]  = sizeof(struct fi_cq_tagged_entry)
+};
+
+
+static void* sstmaci_fill_cq_entry(enum fi_cq_format format, sumi::Message* msg, void* buf, void* context)
+{
+  FabricMessage* fmsg = static_cast<FabricMessage*>(msg);
+  switch (format){
+    case FI_CQ_FORMAT_UNSPEC:
+    case FI_CQ_FORMAT_CONTEXT: {
+      fi_cq_entry* entry = (fi_cq_entry*) buf;
+      entry->op_context = context;
+      entry++;
+      return entry;
+    }
+    case FI_CQ_FORMAT_MSG: {
+      fi_cq_msg_entry* entry = (fi_cq_msg_entry*) buf;
+      entry->op_context = context;
+      entry->len = msg->byteLength();
+      entry->flags = fmsg->flags();
+      entry++;
+      return entry;
+    }
+    case FI_CQ_FORMAT_DATA: {
+      fi_cq_data_entry* entry = (fi_cq_data_entry*) buf;
+      entry->op_context = context;
+      entry->buf = msg->localBuffer();
+      entry->data = fmsg->immData();
+      entry->len = msg->byteLength();
+      entry->flags = fmsg->flags();
+      entry++;
+      return entry;
+    }
+    case FI_CQ_FORMAT_TAGGED: {
+      fi_cq_tagged_entry* entry = (fi_cq_tagged_entry*) buf;
+      entry->op_context = context;
+      entry->buf = msg->localBuffer();
+      entry->data = fmsg->immData();
+      entry->len = msg->byteLength();
+      entry->flags = fmsg->flags();
+      entry->tag = fmsg->tag();
+      entry++;
+      return entry;
+    }
+  }
+  return nullptr;
+}
+
+
+
+
+struct sstmac_fid_cq {
+  struct fid_cq cq_fid;
+  struct sstmac_fid_domain *domain;
+  int id; //the sumi CQ id allocated to this
+  struct fi_cq_attr attr;
+  size_t entry_size;
+  struct fid_wait *wait;
 };
 
 static int sstmac_cq_close(fid_t fid)
@@ -189,10 +249,23 @@ DIRECT_FN STATIC ssize_t sstmac_cq_sreadfrom(struct fid_cq *cq, void *buf,
 }
 
 DIRECT_FN STATIC ssize_t sstmac_cq_read(struct fid_cq *cq,
-				      void *buf,
-				      size_t count)
+                void *buf, size_t count)
 {
-  return __sstmac_cq_sreadfrom(0, cq, buf, count, NULL, NULL, 0);
+  sstmac_fid_cq* cq_impl = (sstmac_fid_cq*) cq;
+  FabricTransport* tport = (FabricTransport*) cq_impl->domain->fabric->tport;
+
+
+
+  size_t done = 0;
+  while (done < count){
+    sumi::Message* msg = tport->poll(false, cq_impl->id);
+    if (!msg){
+      break;
+    }
+    //buf = sstmaci_fill_cq_entry(cq_impl->, msg, buf,)
+    done++;
+  }
+  return done ? done : -FI_EAGAIN;
 }
 
 DIRECT_FN STATIC ssize_t sstmac_cq_sread(struct fid_cq *cq, void *buf,
@@ -212,91 +285,8 @@ DIRECT_FN STATIC ssize_t sstmac_cq_readerr(struct fid_cq *cq,
 					 struct fi_cq_err_entry *buf,
 					 uint64_t flags)
 {
-	ssize_t read_count = 0;
-#if 0
-  struct sstmac_fid_cq *cq_priv;
-  struct sstmac_cq_entry *event;
-	struct slist_entry *entry;
-	size_t err_data_cpylen;
-  struct fi_cq_err_entry *sstmac_cq_err;
-
-
-	if (!cq || !buf)
-		return -FI_EINVAL;
-
-  cq_priv = container_of(cq, struct sstmac_fid_cq, cq_fid);
-
-	/*
-	 * we need to progress cq.  some apps may be only using
-	 * cq to check for errors.
-	 */
-
-  _sstmac_prog_progress(&cq_priv->pset);
-
-	COND_ACQUIRE(cq_priv->requires_lock, &cq_priv->lock);
-
-  entry = _sstmac_queue_dequeue(cq_priv->errors);
-	if (!entry) {
-		read_count = -FI_EAGAIN;
-		goto err;
-	}
-
-  event = container_of(entry, struct sstmac_cq_entry, item);
-  sstmac_cq_err = (fi_cq_err_entry*) event->the_entry;
-
-  buf->op_context = sstmac_cq_err->op_context;
-  buf->flags = sstmac_cq_err->flags;
-  buf->len = sstmac_cq_err->len;
-  buf->buf = sstmac_cq_err->buf;
-  buf->data = sstmac_cq_err->data;
-  buf->tag = sstmac_cq_err->tag;
-  buf->olen = sstmac_cq_err->olen;
-  buf->err = sstmac_cq_err->err;
-  buf->prov_errno = sstmac_cq_err->prov_errno;
-
-  if (sstmac_cq_err->err_data != NULL) {
-		/*
-		 * Note: If the api version is >= 1.5 then copy err_data into
-		 * buf->err_data and copy at most buf->err_data_size.
-		 * If buf->err_data_size is zero or the api version is < 1.5,
-		 * use the old method of allocating space in provider.
-		 */
-		if (FI_VERSION_LT(cq_priv->domain->fabric->fab_fid.api_version,
-		    FI_VERSION(1, 5)) || buf->err_data_size == 0) {
-			err_data_cpylen = sizeof(cq_priv->err_data);
-
-      memcpy(cq_priv->err_data, sstmac_cq_err->err_data,
-				err_data_cpylen);
-
-			buf->err_data = cq_priv->err_data;
-		} else {
-			if (buf->err_data == NULL)
-				return -FI_EINVAL;
-
-			err_data_cpylen = MIN(buf->err_data_size,
-            sstmac_cq_err->err_data_size);
-      memcpy(buf->err_data, sstmac_cq_err->err_data, err_data_cpylen);
-			buf->err_data_size = err_data_cpylen;
-		}
-    free(sstmac_cq_err->err_data);
-    sstmac_cq_err->err_data = NULL;
-	} else {
-		if (FI_VERSION_LT(cq_priv->domain->fabric->fab_fid.api_version,
-		    FI_VERSION(1, 5))) {
-			buf->err_data = NULL;
-		} else {
-			buf->err_data_size = 0;
-		}
-	}
-
-  _sstmac_queue_enqueue_free(cq_priv->errors, &event->item);
-
-	read_count++;
-
-err:
-	COND_RELEASE(cq_priv->requires_lock, &cq_priv->lock);
-#endif
-	return read_count;
+  //there are never any errors in the simulator!
+  return -FI_EINVAL;
 }
 
 DIRECT_FN STATIC const char *sstmac_cq_strerror(struct fid_cq *cq, int prov_errno,
@@ -335,101 +325,35 @@ static int sstmac_cq_control(struct fid *cq, int command, void *arg)
 DIRECT_FN extern "C" int sstmac_cq_open(struct fid_domain *domain, struct fi_cq_attr *attr,
 			   struct fid_cq **cq, void *context)
 {
-	int ret = FI_SUCCESS;
-#if 0
-  struct sstmac_fid_domain *domain_priv;
-  struct sstmac_fid_cq *cq_priv;
-	struct fi_ops_cq *cq_ops;
-	struct fi_ops *fi_cq_ops;
+  sstmac_fid_domain* domain_impl = (sstmac_fid_domain*) domain;
+  FabricTransport* tport = (FabricTransport*) domain_impl;
+  int id = tport->allocateCqId();
+  sstmac_fid_cq* cq_impl = (sstmac_fid_cq*) calloc(1, sizeof(sstmac_fid_cq));
+  cq_impl->domain = domain_impl;
+  cq_impl->id = id;
 
+  //I don't really care what this is, per se
+  cq_impl->attr = *attr;
 
-  SSTMAC_TRACE(FI_LOG_CQ, "\n");
+  struct fi_wait_attr requested = {
+    .wait_obj = attr->wait_obj,
+    .flags = 0
+  };
 
-  cq_ops = (fi_ops_cq*) calloc(1, sizeof(*cq_ops));
-	if (!cq_ops) {
-		return -FI_ENOMEM;
-	}
-
-  fi_cq_ops = (fi_ops*) calloc(1, sizeof(*fi_cq_ops));
-	if (!fi_cq_ops) {
-		ret = -FI_ENOMEM;
-		goto free_cq_ops;
-	}
-
-  *cq_ops = sstmac_cq_ops;
-  *fi_cq_ops = sstmac_cq_fi_ops;
-
-	ret = verify_cq_attr(attr, cq_ops, fi_cq_ops);
-	if (ret)
-		goto free_fi_cq_ops;
-
-  domain_priv = container_of(domain, struct sstmac_fid_domain, domain_fid);
-	if (!domain_priv) {
-		ret = -FI_EINVAL;
-		goto free_fi_cq_ops;
-	}
-
-  cq_priv = (sstmac_fid_cq*) calloc(1, sizeof(*cq_priv));
-	if (!cq_priv) {
-		ret = -FI_ENOMEM;
-		goto free_fi_cq_ops;
-	}
-
-	cq_priv->requires_lock = (domain_priv->thread_model !=
-			FI_THREAD_COMPLETION);
-
-	cq_priv->domain = domain_priv;
-	cq_priv->attr = *attr;
-
-  _sstmac_ref_init(&cq_priv->ref_cnt, 1, __cq_destruct);
-  _sstmac_ref_get(cq_priv->domain);
-
-  _sstmac_prog_init(&cq_priv->pset);
-
-	cq_priv->cq_fid.fid.fclass = FI_CLASS_CQ;
-	cq_priv->cq_fid.fid.context = context;
-	cq_priv->cq_fid.fid.ops = fi_cq_ops;
-	cq_priv->cq_fid.ops = cq_ops;
-
-	/*
-	 * Although we don't need to store entry_size since we're already
-	 * storing the format, this might provide a performance benefit
-	 * when allocating storage.
-	 */
-	cq_priv->entry_size = format_sizes[cq_priv->attr.format];
-
-	fastlock_init(&cq_priv->lock);
-  ret = sstmac_cq_set_wait(cq_priv);
-	if (ret)
-		goto free_cq_priv;
-
-  ret = _sstmac_queue_create(&cq_priv->events, alloc_cq_entry,
-				 free_cq_entry, cq_priv->entry_size,
-				 cq_priv->attr.size);
-	if (ret)
-		goto free_cq_priv;
-
-  ret = _sstmac_queue_create(&cq_priv->errors, alloc_cq_entry,
-				 free_cq_entry, sizeof(struct fi_cq_err_entry),
-				 0);
-	if (ret)
-    goto free_sstmac_queue;
-
-	*cq = &cq_priv->cq_fid;
-	return ret;
-
-free_sstmac_queue:
-  _sstmac_queue_destroy(cq_priv->events);
-free_cq_priv:
-  _sstmac_ref_put(cq_priv->domain);
-	fastlock_destroy(&cq_priv->lock);
-	free(cq_priv);
-free_fi_cq_ops:
-	free(fi_cq_ops);
-free_cq_ops:
-	free(cq_ops);
-#endif
-	return ret;
+  switch (attr->wait_obj) {
+  case FI_WAIT_UNSPEC:
+  case FI_WAIT_FD:
+  case FI_WAIT_MUTEX_COND:
+    sstmac_wait_open(&cq_impl->domain->fabric->fab_fid, &requested, &cq_impl->wait);
+    break;
+  case FI_WAIT_SET:
+    sstmaci_add_wait(cq_impl->attr.wait_set, &cq_impl->cq_fid.fid);
+    break;
+  default:
+    break;
+  }
+  *cq = (fid_cq*) cq_impl;
+  return FI_SUCCESS;
 }
 
 static ssize_t __sstmacx_cq_readfrom(struct fid_cq *cq, void *buf,

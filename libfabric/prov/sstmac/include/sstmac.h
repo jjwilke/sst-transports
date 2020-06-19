@@ -168,13 +168,8 @@ struct sstmac_mem_handle_t {
  * provider. */
 #define SSTMAC_EP_SEC_CAPS (FI_MULTI_RECV | FI_TRIGGER | FI_FENCE)
 
-/* Secondary capabilities that introduce overhead.  Must be requested. */
-#define SSTMAC_EP_SEC_CAPS_OH (FI_SOURCE | FI_RMA_EVENT | FI_SOURCE_ERR)
-
 /* FULL set of capabilities for the provider.  */
-#define SSTMAC_EP_CAPS_FULL (SSTMAC_EP_PRIMARY_CAPS | \
-			   SSTMAC_EP_SEC_CAPS | \
-			   SSTMAC_EP_SEC_CAPS_OH)
+#define SSTMAC_EP_CAPS_FULL (SSTMAC_EP_PRIMARY_CAPS | SSTMAC_EP_SEC_CAPS)
 
 /*
  * see Operations flags in fi_endpoint.3
@@ -321,66 +316,30 @@ enum sstmac_progress_type {
 	SSTMAC_PRG_NON_BLOCKING
 };
 
+
+struct sstmac_fid_tport;
+
 /*
  * simple struct for sstmac fabric, may add more stuff here later
  */
 struct sstmac_fid_fabric {
-	struct fid_fabric fab_fid;
-	/* llist of domains's opened from fabric */
-	struct dlist_entry domain_list;
-	/* number of bound datagrams for domains opened from
-	 * this fabric object - used by cm nic*/
-	int n_bnd_dgrams;
-	/* number of wildcard datagrams for domains opened from
-	 * this fabric object - used by cm nic*/
-	int n_wc_dgrams;
-	uint64_t datagram_timeout;
-  //struct sstmac_reference ref_cnt;
-  //struct sstmac_mr_notifier mr_notifier;
+  struct fid_fabric fab_fid;
+  //this will actually be an SST/macro transport object
+  struct sstmac_fid_tport* tport;
 };
+
 
 extern struct fi_ops_cm sstmac_ep_msg_ops_cm;
 extern struct fi_ops_cm sstmac_ep_ops_cm;
 
 /*
- * a sstmac_fid_domain is associated with one or more sstmac_nic's.
- * the sstmac_nics are in turn associated with ep's opened off of the
- * domain.  The sstmac_nic's are use for data motion - sending/receivng
- * messages, rma ops, etc.
+ * Our domains are very simple because we have nothing complicated
+ * with memory registration and we don't have to worry about
+ * progress modes
  */
 struct sstmac_fid_domain {
 	struct fid_domain domain_fid;
-	/* used for fabric object dlist of domains*/
-	struct dlist_entry list;
-	/* list nics this domain is attached to, TODO: thread safety */
-	struct dlist_entry nic_list;
 	struct sstmac_fid_fabric *fabric;
-	struct sstmac_cm_nic *cm_nic;
-	fastlock_t cm_nic_lock;
-	uint32_t cdm_id_seed;
-	uint32_t addr_format;
-	/* user tunable parameters accessed via open_ops functions */
-  //struct sstmac_ops_domain params;
-	/* additional sstmac cq modes to use for this domain */
-  //sstmac_cq_mode_t sstmac_cq_modes;
-	/* additional sstmac cq modes to use for this domain */
-	enum fi_progress control_progress;
-	enum fi_progress data_progress;
-	enum fi_threading thread_model;
-  //struct sstmac_reference ref_cnt;
-  //sstmac_mr_cache_attr_t mr_cache_attr;
-	struct sstmac_mr_cache_info *mr_cache_info;
-	struct sstmac_mr_ops *mr_ops;
-	fastlock_t mr_cache_lock;
-	int mr_cache_type;
-	/* flag to indicate that memory registration is initialized and should not
-	 * be changed at this point.
-	 */
-	int mr_is_init;
-	int mr_iov_limit;
-	struct sstmac_auth_key *auth_key;
-	int using_vmdh;
-	uint32_t num_allocd_stxs;
 };
 
 struct sstmac_fid_pep {
@@ -467,14 +426,6 @@ struct sstmac_fid_ep {
 	struct sstmac_fid_stx *stx_ctx;
 	struct sstmac_cm_nic *cm_nic;
 	struct sstmac_nic *nic;
-	fastlock_t vc_lock;
-	/* used for unexpected receives */
-  //struct sstmac_tag_storage unexp_recv_queue;
-	/* used for posted receives */
-  //struct sstmac_tag_storage posted_recv_queue;
-
-  //struct sstmac_tag_storage tagged_unexp_recv_queue;
-  //struct sstmac_tag_storage tagged_posted_recv_queue;
 
 	/* pointer to tag matching engine */
 	int (*progress_fn)(struct sstmac_fid_ep *, enum sstmac_progress_type);
@@ -507,17 +458,6 @@ struct sstmac_fid_ep {
 	int conn_state;
 	struct sstmac_ep_name dest_addr;
 	struct sstmac_fid_eq *eq;
-
-	/* Unconnected EP specific. */
-	union {
-		struct sstmac_hashtable *vc_ht;	/* FI_AV_MAP */
-		struct sstmac_vector *vc_table;	/* FI_AV_TABLE */
-	};
-	struct dlist_entry unmapped_vcs;
-
-	/* FI_MORE specific. */
-	struct slist more_read;
-	struct slist more_write;
 };
 
 struct sstmac_fid_sep {
@@ -1014,6 +954,26 @@ void _sstmac_init(void);
 
 #ifdef __cplusplus
 }
+
+struct ErrorDeallocate {
+  template <class T, class Lambda>
+  ErrorDeallocate(T* t, Lambda&& l) :
+    ptr(t), dealloc(std::forward<Lambda>(l))
+  {
+  }
+
+  void success(){
+    ptr = nullptr;
+  }
+
+  ~ErrorDeallocate(){
+    if (ptr) dealloc(ptr);
+  }
+
+  void* ptr;
+  std::function<void(void*)> dealloc;
+};
+
 #endif
 
 #endif /* _SSTMAC_H_ */
