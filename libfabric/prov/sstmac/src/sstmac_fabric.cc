@@ -315,7 +315,7 @@ static struct fi_info *sstmac_allocinfo(void)
 
 
   sstmac_info->tx_attr->caps = SSTMAC_EP_PRIMARY_CAPS;
-  sstmac_info->tx_attr->msg_order = FI_ORDER_NONE;
+  sstmac_info->tx_attr->msg_order = FI_ORDER_SAS;
   sstmac_info->tx_attr->comp_order = FI_ORDER_NONE;
   sstmac_info->tx_attr->inject_size = SSTMAC_INJECT_SIZE;
   sstmac_info->tx_attr->size = SSTMAC_TX_SIZE_DEFAULT;
@@ -323,7 +323,7 @@ static struct fi_info *sstmac_allocinfo(void)
   sstmac_info->tx_attr->rma_iov_limit = SSTMAC_MAX_RMA_IOV_LIMIT;
 
   sstmac_info->rx_attr->caps = SSTMAC_EP_PRIMARY_CAPS;
-  sstmac_info->rx_attr->msg_order = FI_ORDER_NONE;
+  sstmac_info->rx_attr->msg_order = FI_ORDER_SAS;
   sstmac_info->rx_attr->comp_order = FI_ORDER_NONE;
   sstmac_info->rx_attr->size = SSTMAC_RX_SIZE_DEFAULT;
   sstmac_info->rx_attr->iov_limit = SSTMAC_MAX_MSG_IOV_LIMIT;
@@ -481,8 +481,15 @@ static int sstmac_ep_getinfo(enum fi_ep_type ep_type, uint32_t version,
 
       // yeah, whatever, I don't care. This is just a simulator so there is no registration, really.
       // so however the app wants to think it is registering memory is fine with me
-      if (hints->domain_attr->mr_mode != FI_MR_UNSPEC){
-        info->domain_attr->mr_mode = hints->domain_attr->mr_mode;
+      switch(hints->domain_attr->mr_mode){
+        case FI_MR_UNSPEC:
+        case FI_MR_BASIC:
+          info->domain_attr->mr_mode = FI_MR_BASIC;
+          break;
+        case FI_MR_SCALABLE:
+          //there is so scant little documentation on this I couldn't possibly figure
+          //out how to implement this in the simulator
+          return -FI_ENODATA;
       }
 
       // AFAICT, the hints don't really matter for threading here

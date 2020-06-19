@@ -78,24 +78,13 @@ DIRECT_FN extern "C" int sstmac_mr_reg(struct fid *fid, const void *buf, size_t 
 	uint64_t requested_key, uint64_t flags,
 	struct fid_mr **mr, void *context)
 {
-#if 0
-	const struct iovec mr_iov = {
-		.iov_base = (void *) buf,
-		.iov_len = len,
-	};
-	const struct fi_mr_attr attr = {
-		.mr_iov = &mr_iov,
-		.iov_count = 1,
-		.access = access,
-		.offset = offset,
-		.requested_key = requested_key,
-		.context = context,
-		.auth_key = NULL,
-		.auth_key_size = 0,
-	};
-
-	return sstmac_mr_regattr(fid, &attr, flags, mr);
-#endif
+  fid_mr* mr_impl = (fid_mr*) calloc(1, sizeof(fid_mr));
+  mr_impl->fid.fclass = FI_CLASS_MR;
+  mr_impl->fid.context = context;
+  mr_impl->fid.ops = &fi_sstmac_mr_ops;
+  mr_impl->mem_desc = mr_impl; //just point to self
+  mr_impl->key = (uint64_t) buf;
+  //yeah, sure, great, always succeeds
   return FI_SUCCESS;
 }
 
@@ -104,141 +93,38 @@ DIRECT_FN extern "C" int sstmac_mr_regv(struct fid *fid, const struct iovec *iov
 	uint64_t offset, uint64_t requested_key,
 	uint64_t flags, struct fid_mr **mr, void *context)
 {
-#if 0
-	const struct fi_mr_attr attr = {
-		.mr_iov = iov,
-		.iov_count = count,
-		.access = access,
-		.offset = offset,
-		.requested_key = requested_key,
-		.context = context,
-		.auth_key = NULL,
-		.auth_key_size = 0,
-	};
-
-	return sstmac_mr_regattr(fid, &attr, flags, mr);
-#endif
+  fid_mr* mr_impl = (fid_mr*) calloc(1, sizeof(fid_mr));
+  mr_impl->fid.fclass = FI_CLASS_MR;
+  mr_impl->fid.context = context;
+  mr_impl->fid.ops = &fi_sstmac_mr_ops;
+  mr_impl->mem_desc = mr_impl; //just point to self
+  mr_impl->key = (uint64_t) iov;
+  //yeah, sure, great, always succeeds
   return FI_SUCCESS;
 }
 
 DIRECT_FN extern "C" int sstmac_mr_regattr(struct fid *fid, const struct fi_mr_attr *attr,
 	uint64_t flags, struct fid_mr **mr)
 {
-#if 0
-	struct sstmac_fid_domain *domain = container_of(fid,
-		struct sstmac_fid_domain, domain_fid.fid);
-	struct sstmac_auth_key *auth_key;
-
-	if (!attr)
-		return -FI_EINVAL;
-	if (!attr->mr_iov || !attr->iov_count)
-		return -FI_EINVAL;
-
-	if (domain->mr_iov_limit < attr->iov_count)
-		return -FI_EOPNOTSUPP;
-
-	if (FI_VERSION_LT(domain->fabric->fab_fid.api_version,
-		FI_VERSION(1, 5)) &&
-		(attr->auth_key || attr->auth_key_size))
-		return -FI_EINVAL;
-
-	if (attr->auth_key_size) {
-		auth_key = SSTMAC_GET_AUTH_KEY(attr->auth_key,
-			attr->auth_key_size,
-			domain->using_vmdh);
-		if (!auth_key)
-			return -FI_EINVAL;
-	} else {
-		auth_key = domain->auth_key;
-	}
-
-	if (attr->iov_count == 1)
-		return _sstmac_mr_reg(fid, attr->mr_iov[0].iov_base,
-			attr->mr_iov[0].iov_len, attr->access, attr->offset,
-			attr->requested_key, flags, mr, attr->context,
-			auth_key, SSTMAC_USER_REG);
-
-	/* regv limited to one iov at this time */
-#endif
-	return -FI_EOPNOTSUPP;
+  fid_mr* mr_impl = (fid_mr*) calloc(1, sizeof(fid_mr));
+  mr_impl->fid.fclass = FI_CLASS_MR;
+  mr_impl->fid.context = attr->context;
+  mr_impl->fid.ops = &fi_sstmac_mr_ops;
+  mr_impl->mem_desc = mr_impl; //just point to self
+  mr_impl->key = attr->requested_key;
+  //yeah, sure, great, always succeeds
+  return FI_SUCCESS;
 }
 
 static int fi_sstmac_mr_control(struct fid *fid, int command, void *arg)
 {
-	int ret;
-#if 0
-	struct sstmac_fid_mem_desc *desc;
-
-	desc = container_of(fid, struct sstmac_fid_mem_desc, mr_fid);
-	if (desc->mr_fid.fid.fclass != FI_CLASS_MR) {
-		SSTMAC_WARN(FI_LOG_DOMAIN, "invalid fid\n");
-		return -FI_EINVAL;
-	}
-
-	switch (command) {
-	case FI_REFRESH:
-		ret = __sstmac_mr_refresh_iov(fid, arg);
-		break;
-	default:
-		ret = -FI_EOPNOTSUPP;
-		break;
-	}
-#endif
-	return ret;
+  //no mem control operations need to be done in the simulator
+  return -FI_EOPNOTSUPP;
 }
 
 static int fi_sstmac_mr_close(fid_t fid)
 {
-	sstmac_return_t ret;
-#if 0
-	struct sstmac_fid_mem_desc *mr;
-	struct sstmac_fid_domain *domain;
-	struct sstmac_mr_cache_info *info;
-	int requested_key;
-	struct sstmac_auth_key *auth_key;
-
-	SSTMAC_TRACE(FI_LOG_MR, "\n");
-
-	if (OFI_UNLIKELY(fid->fclass != FI_CLASS_MR))
-		return -FI_EINVAL;
-
-	mr = container_of(fid, struct sstmac_fid_mem_desc, mr_fid.fid);
-
-	auth_key = mr->auth_key;
-	domain = mr->domain;
-	requested_key = fi_mr_key(&mr->mr_fid);
-	info = &domain->mr_cache_info[mr->auth_key->ptag];
-
-	/* call cache deregister op */
-	fastlock_acquire(&info->mr_cache_lock);
-	ret = domain->mr_ops->dereg_mr(domain, mr);
-	fastlock_release(&info->mr_cache_lock);
-
-	/* check retcode */
-	if (OFI_LIKELY(ret == FI_SUCCESS)) {
-		/* release references to the domain and nic */
-		_sstmac_ref_put(domain);
-		if (auth_key->using_vmdh) {
-			if (requested_key < auth_key->attr.user_key_limit)
-				_sstmac_test_and_clear_bit(auth_key->user,
-					requested_key);
-			else {
-				ret = _sstmac_release_reserved_key(auth_key,
-					requested_key);
-				if (ret != FI_SUCCESS) {
-					SSTMAC_WARN(FI_LOG_DOMAIN,
-						"failed to release reserved key, "
-						"rc=%d key=%d\n",
-						ret, requested_key);
-				}
-			}
-		}
-	} else {
-		SSTMAC_INFO(FI_LOG_MR, "failed to deregister memory, "
-			  "ret=%i\n", ret);
-	}
-#endif
-	return ret;
+  return FI_SUCCESS;
 }
 
 DIRECT_FN extern "C" int sstmac_mr_bind(fid_t fid, struct fid *bfid, uint64_t flags)

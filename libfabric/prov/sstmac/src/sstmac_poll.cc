@@ -54,8 +54,7 @@ DIRECT_FN extern "C" int sstmac_poll_open(struct fid_domain *domain,
 }
 
 
-DIRECT_FN extern "C" int sstmac_poll_poll(struct fid_poll *pollset, void **context,
-			     int count)
+DIRECT_FN extern "C" int sstmac_poll_poll(struct fid_poll *pollset, void **context, int count)
 {
 	return -FI_ENOSYS;
 }

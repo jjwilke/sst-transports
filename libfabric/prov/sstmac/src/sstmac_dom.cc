@@ -292,6 +292,10 @@ sstmac_domain_ops_open(struct fid *fid, const char *ops_name, uint64_t flags,
 DIRECT_FN extern "C" int sstmac_domain_open(struct fid_fabric *fabric, struct fi_info *info,
              struct fid_domain **dom_ptr, void *context)
 {
+  if (info->domain_attr->mr_mode & FI_MR_SCALABLE){
+    return -FI_EINVAL;
+  }
+
   sstmac_fid_domain* domain = (sstmac_fid_domain*) calloc(1, sizeof(sstmac_fid_domain));
   sstmac_fid_fabric* fabric_impl = (sstmac_fid_fabric*) fabric;
   //we don't really have to do a ton of work here

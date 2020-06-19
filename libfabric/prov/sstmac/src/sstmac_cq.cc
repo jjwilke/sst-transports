@@ -158,109 +158,30 @@ struct sstmac_fid_cq {
 
 static int sstmac_cq_close(fid_t fid)
 {
-#if 0
-  struct sstmac_fid_cq *cq;
-	int references_held;
-
-  SSTMAC_TRACE(FI_LOG_CQ, "\n");
-
-  cq = container_of(fid, struct sstmac_fid_cq, cq_fid);
-
-  references_held = _sstmac_ref_put(cq);
-
-	if (references_held) {
-    SSTMAC_INFO(FI_LOG_CQ, "failed to fully close cq due to lingering "
-				"references. references=%i cq=%p\n",
-				references_held, cq);
-	}
-#endif
+  sstmac_fid_cq* cq_impl = (sstmac_fid_cq*) fid;
+  FabricTransport* tport = (FabricTransport*) cq_impl->domain->fabric->tport;
+  tport->deallocateCq(cq_impl->id);
+  free(cq_impl);
 	return FI_SUCCESS;
 }
 
-static ssize_t __sstmac_cq_readfrom(struct fid_cq *cq, void *buf,
-					  size_t count, fi_addr_t *src_addr)
-{
-  ssize_t read_count = 0;
-#if 0
-  struct sstmac_fid_cq *cq_priv;
-  struct sstmac_cq_entry *event;
-	struct slist_entry *temp;
-
-	if (!cq || !buf || !count)
-		return -FI_EINVAL;
-
-  cq_priv = container_of(cq, struct sstmac_fid_cq, cq_fid);
-
-  __sstmac_cq_progress(cq_priv);
-
-  if (_sstmac_queue_peek(cq_priv->errors))
-		return -FI_EAVAIL;
-
-	COND_ACQUIRE(cq_priv->requires_lock, &cq_priv->lock);
-
-  while (_sstmac_queue_peek(cq_priv->events) && count--) {
-    temp = _sstmac_queue_dequeue(cq_priv->events);
-    event = container_of(temp, struct sstmac_cq_entry, item);
-
-		assert(event->the_entry);
-		memcpy(buf, event->the_entry, cq_priv->entry_size);
-		if (src_addr)
-			memcpy(&src_addr[read_count], &event->src_addr, sizeof(fi_addr_t));
-
-    _sstmac_queue_enqueue_free(cq_priv->events, &event->item);
-
-		buf = (void *) ((uint8_t *) buf + cq_priv->entry_size);
-
-		read_count++;
-	}
-
-	COND_RELEASE(cq_priv->requires_lock, &cq_priv->lock);
-#endif
-	return read_count ?: -FI_EAGAIN;
-}
-
-static ssize_t __sstmac_cq_sreadfrom(int blocking, struct fid_cq *cq, void *buf,
-				     size_t count, fi_addr_t *src_addr,
-				     const void *cond, int timeout)
-{
-#if 0
-  struct sstmac_fid_cq *cq_priv;
-
-  cq_priv = container_of(cq, struct sstmac_fid_cq, cq_fid);
-	if ((blocking && !cq_priv->wait) ||
-	    (blocking && cq_priv->attr.wait_obj == FI_WAIT_SET))
-		return -FI_EINVAL;
-
-  if (_sstmac_queue_peek(cq_priv->errors))
-		return -FI_EAVAIL;
-
-	if (cq_priv->wait)
-    sstmac_wait_wait((struct fid_wait *)cq_priv->wait, timeout);
-#endif
-  return __sstmac_cq_readfrom(cq, buf, count, src_addr);
-
-}
-
-DIRECT_FN STATIC ssize_t sstmac_cq_sreadfrom(struct fid_cq *cq, void *buf,
-					   size_t count, fi_addr_t *src_addr,
-					   const void *cond, int timeout)
-{
-  return __sstmac_cq_sreadfrom(1, cq, buf, count, src_addr, cond, timeout);
-}
-
-DIRECT_FN STATIC ssize_t sstmac_cq_read(struct fid_cq *cq,
-                void *buf, size_t count)
+static ssize_t sstmaci_cq_read(bool blocking,
+                        struct fid_cq *cq, void *buf,
+                        size_t count, fi_addr_t *src_addr,
+                        const void *cond, int timeout)
 {
   sstmac_fid_cq* cq_impl = (sstmac_fid_cq*) cq;
   FabricTransport* tport = (FabricTransport*) cq_impl->domain->fabric->tport;
 
-
-
   size_t done = 0;
   while (done < count){
-    sumi::Message* msg = tport->poll(false, cq_impl->id);
+    double timeout_s = (blocking && timeout > 0) ? timeout*1e-3 : -1;
+    sumi::Message* msg = tport->poll(blocking, cq_impl->id, timeout_s);
     if (!msg){
       break;
+    }
+    if (src_addr){
+      src_addr[done] = msg->sender();
     }
     //buf = sstmaci_fill_cq_entry(cq_impl->, msg, buf,)
     done++;
@@ -268,17 +189,30 @@ DIRECT_FN STATIC ssize_t sstmac_cq_read(struct fid_cq *cq,
   return done ? done : -FI_EAGAIN;
 }
 
+DIRECT_FN STATIC ssize_t sstmac_cq_sreadfrom(struct fid_cq *cq, void *buf,
+					   size_t count, fi_addr_t *src_addr,
+					   const void *cond, int timeout)
+{
+  return sstmaci_cq_read(true, cq, buf, count, src_addr, cond, timeout);
+}
+
+DIRECT_FN STATIC ssize_t sstmac_cq_read(struct fid_cq *cq,
+                void *buf, size_t count)
+{
+  return sstmaci_cq_read(false, cq, buf, count, nullptr, nullptr, -1);
+}
+
 DIRECT_FN STATIC ssize_t sstmac_cq_sread(struct fid_cq *cq, void *buf,
 				       size_t count, const void *cond,
 				       int timeout)
 {
-  return __sstmac_cq_sreadfrom(1, cq, buf, count, NULL, cond, timeout);
+  return sstmaci_cq_read(true, cq, buf, count, nullptr, cond, timeout);
 }
 
 DIRECT_FN STATIC ssize_t sstmac_cq_readfrom(struct fid_cq *cq, void *buf,
 					  size_t count, fi_addr_t *src_addr)
 {
-  return __sstmac_cq_sreadfrom(0, cq, buf, count, src_addr, NULL, 0);
+  return sstmaci_cq_read(false, cq, buf, count, src_addr, nullptr, -1);
 }
 
 DIRECT_FN STATIC ssize_t sstmac_cq_readerr(struct fid_cq *cq,
@@ -298,14 +232,7 @@ DIRECT_FN STATIC const char *sstmac_cq_strerror(struct fid_cq *cq, int prov_errn
 
 DIRECT_FN STATIC extern "C" int sstmac_cq_signal(struct fid_cq *cq)
 {
-#if 0
-  struct sstmac_fid_cq *cq_priv;
-
-  cq_priv = container_of(cq, struct sstmac_fid_cq, cq_fid);
-
-	if (cq_priv->wait)
-    _sstmac_signal_wait_obj(cq_priv->wait);
-#endif
+  spkt_abort_printf("unimplemented: ssmac_cq_signal");
 	return FI_SUCCESS;
 }
 
@@ -319,8 +246,6 @@ static int sstmac_cq_control(struct fid *cq, int command, void *arg)
 		return -FI_EINVAL;
 	}
 }
-
-
 
 DIRECT_FN extern "C" int sstmac_cq_open(struct fid_domain *domain, struct fi_cq_attr *attr,
 			   struct fid_cq **cq, void *context)
@@ -354,85 +279,5 @@ DIRECT_FN extern "C" int sstmac_cq_open(struct fid_domain *domain, struct fi_cq_
   }
   *cq = (fid_cq*) cq_impl;
   return FI_SUCCESS;
-}
-
-static ssize_t __sstmacx_cq_readfrom(struct fid_cq *cq, void *buf,
-					  size_t count, fi_addr_t *src_addr)
-{
-	ssize_t read_count = 0;
-#if 0
-	struct sstmacx_fid_cq *cq_priv;
-	struct sstmacx_cq_entry *event;
-	struct slist_entry *temp;
-
-
-	if (!cq || !buf || !count)
-		return -FI_EINVAL;
-
-	cq_priv = container_of(cq, struct sstmacx_fid_cq, cq_fid);
-
-	__sstmacx_cq_progress(cq_priv);
-
-	if (_sstmacx_queue_peek(cq_priv->errors))
-		return -FI_EAVAIL;
-
-	COND_ACQUIRE(cq_priv->requires_lock, &cq_priv->lock);
-
-	while (_sstmacx_queue_peek(cq_priv->events) && count--) {
-		temp = _sstmacx_queue_dequeue(cq_priv->events);
-		event = container_of(temp, struct sstmacx_cq_entry, item);
-
-		assert(event->the_entry);
-		memcpy(buf, event->the_entry, cq_priv->entry_size);
-		if (src_addr)
-			memcpy(&src_addr[read_count], &event->src_addr, sizeof(fi_addr_t));
-
-		_sstmacx_queue_enqueue_free(cq_priv->events, &event->item);
-
-		buf = (void *) ((uint8_t *) buf + cq_priv->entry_size);
-
-		read_count++;
-	}
-
-	COND_RELEASE(cq_priv->requires_lock, &cq_priv->lock);
-#endif
-	return read_count ?: -FI_EAGAIN;
-}
-
-static ssize_t __sstmacx_cq_sreadfrom(int blocking, struct fid_cq *cq, void *buf,
-				     size_t count, fi_addr_t *src_addr,
-				     const void *cond, int timeout)
-{
-#if 0
-	struct sstmacx_fid_cq *cq_priv;
-
-	cq_priv = container_of(cq, struct sstmacx_fid_cq, cq_fid);
-	if ((blocking && !cq_priv->wait) ||
-	    (blocking && cq_priv->attr.wait_obj == FI_WAIT_SET))
-		return -FI_EINVAL;
-
-	if (_sstmacx_queue_peek(cq_priv->errors))
-		return -FI_EAVAIL;
-
-	if (cq_priv->wait)
-		sstmacx_wait_wait((struct fid_wait *)cq_priv->wait, timeout);
-
-#endif
-	return __sstmacx_cq_readfrom(cq, buf, count, src_addr);
-
-}
-
-DIRECT_FN STATIC ssize_t sstmacx_cq_read(struct fid_cq *cq,
-				      void *buf,
-				      size_t count)
-{
-	return __sstmacx_cq_sreadfrom(0, cq, buf, count, NULL, NULL, 0);
-}
-
-DIRECT_FN STATIC ssize_t sstmacx_cq_sread(struct fid_cq *cq, void *buf,
-				       size_t count, const void *cond,
-				       int timeout)
-{
-	return __sstmacx_cq_sreadfrom(1, cq, buf, count, NULL, cond, timeout);
 }
 
