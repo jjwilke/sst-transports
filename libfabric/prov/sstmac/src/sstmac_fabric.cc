@@ -307,7 +307,7 @@ static struct fi_info *sstmac_allocinfo(void)
 
 
   sstmac_info->next = NULL;
-  sstmac_info->addr_format = FI_ADDR_GNI;
+  sstmac_info->addr_format = FI_ADDR_STR;
   sstmac_info->src_addrlen = sizeof(struct sstmac_ep_name);
   sstmac_info->dest_addrlen = sizeof(struct sstmac_ep_name);
   sstmac_info->src_addr = NULL;
@@ -360,6 +360,10 @@ static int sstmac_ep_getinfo(enum fi_ep_type ep_type, uint32_t version,
     //let's ensure that what was requested is actually possible
     if (hints->addr_format == FI_ADDR_STR){
       info->addr_format = FI_ADDR_STR;
+    } else if (hints->addr_format == FI_ADDR_SSTMAC){
+      info->addr_format = FI_ADDR_SSTMAC;
+    } else {
+      return -FI_ENODATA;
     }
 
     if (hints->ep_attr){

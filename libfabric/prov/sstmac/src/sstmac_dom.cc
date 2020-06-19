@@ -277,14 +277,7 @@ static int
 sstmac_domain_ops_open(struct fid *fid, const char *ops_name, uint64_t flags,
 		     void **ops, void *context)
 {
-	int ret = FI_SUCCESS;
-#if 0
-	if (strcmp(ops_name, FI_SSTMAC_DOMAIN_OPS_1) == 0)
-		*ops = &sstmac_ops_domain;
-	else
-		ret = -FI_EINVAL;
-#endif
-	return ret;
+  return -FI_EINVAL;;
 }
 
 
@@ -307,6 +300,7 @@ DIRECT_FN extern "C" int sstmac_domain_open(struct fid_fabric *fabric, struct fi
   domain->domain_fid.ops = &sstmac_domain_ops;
   domain->domain_fid.mr = &sstmac_domain_mr_ops;
   domain->fabric = fabric_impl;
+  domain->addr_format = info->addr_format;
   *dom_ptr = (fid_domain*) domain;
   return FI_SUCCESS;
 }

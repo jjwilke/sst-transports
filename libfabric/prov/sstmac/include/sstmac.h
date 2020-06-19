@@ -339,7 +339,8 @@ extern struct fi_ops_cm sstmac_ep_ops_cm;
  */
 struct sstmac_fid_domain {
 	struct fid_domain domain_fid;
-	struct sstmac_fid_fabric *fabric;
+  struct sstmac_fid_fabric *fabric;
+  uint32_t addr_format;
 };
 
 struct sstmac_fid_pep {
@@ -497,19 +498,8 @@ struct sstmac_fid_stx {
 };
 
 struct sstmac_fid_av {
-	struct fid_av av_fid;
-	struct sstmac_fid_domain *domain;
-	enum fi_av_type type;
-	struct sstmac_av_addr_entry* table;
-	int *valid_entry_vec;
-	size_t addrlen;
-	size_t capacity;
-	size_t count;
-	uint64_t rx_ctx_bits;
-	uint64_t mask;
-	struct sstmac_hashtable *map_ht;
-	struct slist block_list;
-  //struct sstmac_reference ref_cnt;
+  fid_av av_fid;
+  sstmac_fid_domain* domain;
 };
 
 enum sstmac_fab_req_type {
