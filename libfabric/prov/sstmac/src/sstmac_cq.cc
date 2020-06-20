@@ -91,29 +91,20 @@ static const struct fi_ops_cq sstmac_cq_ops = {
   .strerror = sstmac_cq_strerror
 };
 
-static const size_t format_sizes[] = {
-  [FI_CQ_FORMAT_UNSPEC]  = sizeof(struct fi_cq_entry),
-	[FI_CQ_FORMAT_CONTEXT] = sizeof(struct fi_cq_entry),
-	[FI_CQ_FORMAT_MSG]     = sizeof(struct fi_cq_msg_entry),
-	[FI_CQ_FORMAT_DATA]    = sizeof(struct fi_cq_data_entry),
-	[FI_CQ_FORMAT_TAGGED]  = sizeof(struct fi_cq_tagged_entry)
-};
-
-
-static void* sstmaci_fill_cq_entry(enum fi_cq_format format, sumi::Message* msg, void* buf, void* context)
+static void* sstmaci_fill_cq_entry(enum fi_cq_format format, void* buf, FabricMessage* msg)
 {
   FabricMessage* fmsg = static_cast<FabricMessage*>(msg);
   switch (format){
     case FI_CQ_FORMAT_UNSPEC:
     case FI_CQ_FORMAT_CONTEXT: {
       fi_cq_entry* entry = (fi_cq_entry*) buf;
-      entry->op_context = context;
+      entry->op_context = msg->context();
       entry++;
       return entry;
     }
     case FI_CQ_FORMAT_MSG: {
       fi_cq_msg_entry* entry = (fi_cq_msg_entry*) buf;
-      entry->op_context = context;
+      entry->op_context = msg->context();
       entry->len = msg->byteLength();
       entry->flags = fmsg->flags();
       entry++;
@@ -121,7 +112,7 @@ static void* sstmaci_fill_cq_entry(enum fi_cq_format format, sumi::Message* msg,
     }
     case FI_CQ_FORMAT_DATA: {
       fi_cq_data_entry* entry = (fi_cq_data_entry*) buf;
-      entry->op_context = context;
+      entry->op_context = msg->context();
       entry->buf = msg->localBuffer();
       entry->data = fmsg->immData();
       entry->len = msg->byteLength();
@@ -131,7 +122,7 @@ static void* sstmaci_fill_cq_entry(enum fi_cq_format format, sumi::Message* msg,
     }
     case FI_CQ_FORMAT_TAGGED: {
       fi_cq_tagged_entry* entry = (fi_cq_tagged_entry*) buf;
-      entry->op_context = context;
+      entry->op_context = msg->context();
       entry->buf = msg->localBuffer();
       entry->data = fmsg->immData();
       entry->len = msg->byteLength();
@@ -143,18 +134,6 @@ static void* sstmaci_fill_cq_entry(enum fi_cq_format format, sumi::Message* msg,
   }
   return nullptr;
 }
-
-
-
-
-struct sstmac_fid_cq {
-  struct fid_cq cq_fid;
-  struct sstmac_fid_domain *domain;
-  int id; //the sumi CQ id allocated to this
-  struct fi_cq_attr attr;
-  size_t entry_size;
-  struct fid_wait *wait;
-};
 
 static int sstmac_cq_close(fid_t fid)
 {
@@ -183,7 +162,7 @@ static ssize_t sstmaci_cq_read(bool blocking,
     if (src_addr){
       src_addr[done] = msg->sender();
     }
-    //buf = sstmaci_fill_cq_entry(cq_impl->, msg, buf,)
+    buf = sstmaci_fill_cq_entry(cq_impl->format, buf, static_cast<FabricMessage*>(msg));
     done++;
   }
   return done ? done : -FI_EAGAIN;
@@ -256,9 +235,8 @@ DIRECT_FN extern "C" int sstmac_cq_open(struct fid_domain *domain, struct fi_cq_
   sstmac_fid_cq* cq_impl = (sstmac_fid_cq*) calloc(1, sizeof(sstmac_fid_cq));
   cq_impl->domain = domain_impl;
   cq_impl->id = id;
+  cq_impl->format = attr->format;
 
-  //I don't really care what this is, per se
-  cq_impl->attr = *attr;
 
   struct fi_wait_attr requested = {
     .wait_obj = attr->wait_obj,
@@ -272,7 +250,7 @@ DIRECT_FN extern "C" int sstmac_cq_open(struct fid_domain *domain, struct fi_cq_
     sstmac_wait_open(&cq_impl->domain->fabric->fab_fid, &requested, &cq_impl->wait);
     break;
   case FI_WAIT_SET:
-    sstmaci_add_wait(cq_impl->attr.wait_set, &cq_impl->cq_fid.fid);
+    sstmaci_add_wait(attr->wait_set, &cq_impl->cq_fid.fid);
     break;
   default:
     break;

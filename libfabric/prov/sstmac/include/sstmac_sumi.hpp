@@ -49,12 +49,17 @@
 
 class FabricMessage : public sumi::Message {
  public:
+  constexpr static uint64_t no_tag = std::numeric_limits<uint64_t>::max();
+  constexpr static uint64_t no_imm_data = std::numeric_limits<uint64_t>::max();
+
   template <class... Args>
-  FabricMessage(uint64_t tag, uint64_t flags, uint64_t imm_data, Args&&... args) :
+  FabricMessage(uint64_t tag, uint64_t flags, uint64_t imm_data, void* ctx,
+                Args&&... args) :
     sumi::Message(std::forward<Args>(args)...),
     tag_(tag),
     flags_(flags),
-    imm_data_(imm_data)
+    imm_data_(imm_data),
+    context_(ctx)
   {
   }
 
@@ -70,10 +75,15 @@ class FabricMessage : public sumi::Message {
     return imm_data_;
   }
 
+  void* context() const {
+    return context_;
+  }
+
  private:
   uint64_t flags_;
   uint64_t imm_data_;
   uint64_t tag_;
+  void* context_;
 };
 
 class FabricTransport : public sumi::SimTransport {

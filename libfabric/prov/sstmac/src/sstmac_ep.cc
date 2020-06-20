@@ -86,6 +86,8 @@ Questions? Contact sst-macro-help@sandia.gov
 #include "sstmac.h"
 #include "sstmac_ep.h"
 
+#include <sstmac_sumi.hpp>
+
 DIRECT_FN STATIC extern "C" int sstmac_ep_control(fid_t fid, int command, void *arg);
 static int sstmac_ep_ops_open(struct fid *fid, const char *ops_name, uint64_t flags,
                               void **ops, void *context);
@@ -625,6 +627,27 @@ DIRECT_FN STATIC ssize_t sstmac_ep_msg_inject(struct fid_ep *ep, const void *buf
 	return _ep_inject(ep, buf, len, 0, dest_addr, 0, 0);
 }
 
+static ssize_t sstmaci_ep_send(struct fid_ep* ep, const void* buf, size_t len,
+                               fi_addr_t dest_addr, void* context,
+                               uint64_t data, uint64_t flags)
+{
+  sstmac_fid_ep* ep_impl = (sstmac_fid_ep*) ep;
+  FabricTransport* tport = (FabricTransport*) ep_impl->domain->fabric->tport;
+
+  uint32_t dest_rank = ADDR_RANK(dest_addr);
+  uint16_t remote_cq = ADDR_CQ(dest_addr);
+  uint16_t recv_queue = ADDR_QUEUE(dest_addr);
+
+  flags |= FI_SEND;
+
+  tport->postSend<FabricMessage>(dest_rank, len, const_cast<void*>(buf),
+                                 ep_impl->send_cq->id, // rma operations go to the tx
+                                 remote_cq, recv_queue,
+                                 sumi::Message::pt2pt, ep_impl->qos,
+                                 FabricMessage::no_tag, FabricMessage::no_imm_data, flags, context);
+  return 0;
+}
+
 DIRECT_FN STATIC ssize_t sstmac_ep_senddata(struct fid_ep *ep, const void *buf,
 					  size_t len, void *desc, uint64_t data,
 					  fi_addr_t dest_addr, void *context)
@@ -636,22 +659,31 @@ DIRECT_FN STATIC ssize_t
 sstmac_ep_msg_injectdata(struct fid_ep *ep, const void *buf, size_t len,
 		       uint64_t data, fi_addr_t dest_addr)
 {
-#if 0
-	struct sstmac_fid_ep *sstmac_ep;
-	uint64_t flags;
+  return -FI_ENOSYS;
+}
 
-	if (!ep) {
-		return -FI_EINVAL;
-	}
+static ssize_t sstmaci_ep_read(struct fid_ep *ep, void *buf, size_t len,
+                               fi_addr_t src_addr, uint64_t addr,
+                               void *context)
+{
+  sstmac_fid_ep* ep_impl = (sstmac_fid_ep*) ep;
+  FabricTransport* tport = (FabricTransport*) ep_impl->domain->fabric->tport;
 
-	sstmac_ep = container_of(ep, struct sstmac_fid_ep, ep_fid);
+  uint32_t src_rank = ADDR_RANK(src_addr);
 
-	flags = sstmac_ep->op_flags | FI_INJECT | FI_REMOTE_CQ_DATA |
-    SSTMAC_SUPPRESS_COMPLETION;
+  uint64_t flags = 0;
+  int remote_cq = sumi::Message::no_ack;
+  if (ep_impl->op_flags & FI_REMOTE_READ){
+    remote_cq = ADDR_CQ(src_addr);
+    flags |= FI_REMOTE_READ;
+  }
+  flags |= FI_READ;
 
-	return _sstmac_send(sstmac_ep, (uint64_t)buf, len, NULL, dest_addr,
-			  NULL, flags, data, 0);
-#endif
+  tport->rdmaGet<FabricMessage>(src_rank, len, buf, (void*) addr,
+                                ep_impl->send_cq->id, // rma operations go to the tx
+                                remote_cq,
+                                sumi::Message::pt2pt, ep_impl->qos,
+                                FabricMessage::no_tag, FabricMessage::no_imm_data, flags, context);
   return 0;
 }
 
@@ -659,24 +691,7 @@ DIRECT_FN STATIC ssize_t sstmac_ep_read(struct fid_ep *ep, void *buf, size_t len
 				      void *desc, fi_addr_t src_addr, uint64_t addr,
 				      uint64_t key, void *context)
 {
-#if 0
-	struct sstmac_fid_ep *sstmac_ep;
-	uint64_t flags;
-
-	if (!ep) {
-		return -FI_EINVAL;
-	}
-
-	sstmac_ep = container_of(ep, struct sstmac_fid_ep, ep_fid);
-
-  flags = sstmac_ep->op_flags | SSTMAC_RMA_READ_FLAGS_DEF;
-
-  return _sstmac_rma(sstmac_ep, SSTMAC_FAB_RQ_RDMA_READ,
-			 (uint64_t)buf, len, desc,
-			 src_addr, addr, key,
-			 context, flags, 0);
-#endif
-  return 0;
+  return sstmaci_ep_read(ep, buf, len, src_addr, addr, context);
 }
 
 DIRECT_FN STATIC ssize_t
@@ -684,50 +699,39 @@ sstmac_ep_readv(struct fid_ep *ep, const struct iovec *iov, void **desc,
 	      size_t count, fi_addr_t src_addr, uint64_t addr, uint64_t key,
 	      void *context)
 {
-#if 0
-	struct sstmac_fid_ep *sstmac_ep;
-	uint64_t flags;
-
-  if (!ep || !iov || !desc || count > SSTMAC_MAX_RMA_IOV_LIMIT) {
-		return -FI_EINVAL;
-	}
-
-	sstmac_ep = container_of(ep, struct sstmac_fid_ep, ep_fid);
-  assert(SSTMAC_EP_RDM_DGM_MSG(sstmac_ep->type));
-
-  flags = sstmac_ep->op_flags | SSTMAC_RMA_READ_FLAGS_DEF;
-
-  return _sstmac_rma(sstmac_ep, SSTMAC_FAB_RQ_RDMA_READ,
-			 (uint64_t)iov[0].iov_base, iov[0].iov_len, desc[0],
-			 src_addr, addr, key,
-			 context, flags, 0);
-#endif
-  return 0;
+  if (count == 1){
+    return sstmaci_ep_read(ep, iov[0].iov_base, iov[0].iov_len, src_addr, addr, context);
+  } else {
+    return -FI_ENOSYS;
+  }
 }
 
 DIRECT_FN STATIC ssize_t
 sstmac_ep_readmsg(struct fid_ep *ep, const struct fi_msg_rma *msg, uint64_t flags)
 {
-#if 0
-	struct sstmac_fid_ep *sstmac_ep;
+  return -FI_ENOSYS;
+}
 
-	if (!ep || !msg || !msg->msg_iov || !msg->rma_iov || !msg->desc ||
-	    msg->iov_count != 1 || msg->rma_iov_count != 1 ||
-	    msg->rma_iov[0].len > msg->msg_iov[0].iov_len) {
-		return -FI_EINVAL;
-	}
+static ssize_t sstmaci_ep_write(struct fid_ep *ep, const void *buf, size_t len,
+                                fi_addr_t dest_addr, uint64_t addr, void *context,
+                                uint64_t data, uint64_t flags)
+{
+  sstmac_fid_ep* ep_impl = (sstmac_fid_ep*) ep;
+  FabricTransport* tport = (FabricTransport*) ep_impl->domain->fabric->tport;
 
-	sstmac_ep = container_of(ep, struct sstmac_fid_ep, ep_fid);
-  assert(SSTMAC_EP_RDM_DGM_MSG(sstmac_ep->type));
+  int remote_cq = sumi::Message::no_ack;
+  if (ep_impl->op_flags & FI_REMOTE_WRITE){
+    remote_cq = ADDR_CQ(dest_addr);
+    flags |= FI_REMOTE_WRITE;
+  }
+  flags |= FI_WRITE;
 
-  flags = (flags & SSTMAC_READMSG_FLAGS) | SSTMAC_RMA_READ_FLAGS_DEF;
-
-  return _sstmac_rma(sstmac_ep, SSTMAC_FAB_RQ_RDMA_READ,
-			 (uint64_t)msg->msg_iov[0].iov_base,
-			 msg->msg_iov[0].iov_len, msg->desc[0],
-			 msg->addr, msg->rma_iov[0].addr, msg->rma_iov[0].key,
-			 msg->context, flags, msg->data);
-#endif
+  uint32_t src_rank = ADDR_RANK(dest_addr);
+  tport->rdmaPut<FabricMessage>(src_rank, len, const_cast<void*>(buf), (void*) addr,
+                                ep_impl->send_cq->id, // rma operations go to the tx
+                                remote_cq,
+                                sumi::Message::pt2pt, ep_impl->qos,
+                                FabricMessage::no_tag, data, flags, context);
   return 0;
 }
 
@@ -735,24 +739,8 @@ DIRECT_FN STATIC ssize_t
 sstmac_ep_write(struct fid_ep *ep, const void *buf, size_t len, void *desc,
 	      fi_addr_t dest_addr, uint64_t addr, uint64_t key, void *context)
 {
-#if 0
-	struct sstmac_fid_ep *sstmac_ep;
-	uint64_t flags;
-
-	if (!ep) {
-		return -FI_EINVAL;
-	}
-
-	sstmac_ep = container_of(ep, struct sstmac_fid_ep, ep_fid);
-  assert(SSTMAC_EP_RDM_DGM_MSG(sstmac_ep->type));
-
-  flags = sstmac_ep->op_flags | SSTMAC_RMA_WRITE_FLAGS_DEF;
-
-  return _sstmac_rma(sstmac_ep, SSTMAC_FAB_RQ_RDMA_WRITE,
-			 (uint64_t)buf, len, desc, dest_addr, addr, key,
-			 context, flags, 0);
-#endif
-  return 0;
+  return sstmaci_ep_write(ep, buf, len, dest_addr, addr, context,
+                          FabricMessage::no_imm_data, FI_REMOTE_CQ_DATA);
 }
 
 DIRECT_FN STATIC ssize_t
@@ -760,77 +748,25 @@ sstmac_ep_writev(struct fid_ep *ep, const struct iovec *iov, void **desc,
 	       size_t count, fi_addr_t dest_addr, uint64_t addr, uint64_t key,
 	       void *context)
 {
-#if 0
-	struct sstmac_fid_ep *sstmac_ep;
-	uint64_t flags;
-
-  if (!ep || !iov || !desc || count > SSTMAC_MAX_RMA_IOV_LIMIT) {
-		return -FI_EINVAL;
-	}
-
-	sstmac_ep = container_of(ep, struct sstmac_fid_ep, ep_fid);
-  assert(SSTMAC_EP_RDM_DGM_MSG(sstmac_ep->type));
-
-  flags = sstmac_ep->op_flags | SSTMAC_RMA_WRITE_FLAGS_DEF;
-
-  return _sstmac_rma(sstmac_ep, SSTMAC_FAB_RQ_RDMA_WRITE,
-			 (uint64_t)iov[0].iov_base, iov[0].iov_len, desc[0],
-			 dest_addr, addr, key, context, flags, 0);
-#endif
-  return 0;
+  if (count == 1){
+    return sstmaci_ep_write(ep, iov[0].iov_base, iov[0].iov_len, dest_addr, addr, context,
+                            FabricMessage::no_imm_data, 0);
+  } else {
+    return -FI_ENOSYS;
+  }
 }
 
 DIRECT_FN STATIC ssize_t sstmac_ep_writemsg(struct fid_ep *ep, const struct fi_msg_rma *msg,
 				uint64_t flags)
 {
-#if 0
-	struct sstmac_fid_ep *sstmac_ep;
-
-	if (!ep || !msg || !msg->msg_iov || !msg->rma_iov ||
-	    msg->iov_count != 1 ||
-    msg->rma_iov_count > SSTMAC_MAX_RMA_IOV_LIMIT ||
-	    msg->rma_iov[0].len > msg->msg_iov[0].iov_len) {
-		return -FI_EINVAL;
-	}
-
-	sstmac_ep = container_of(ep, struct sstmac_fid_ep, ep_fid);
-  assert(SSTMAC_EP_RDM_DGM_MSG(sstmac_ep->type));
-
-  flags = (flags & SSTMAC_WRITEMSG_FLAGS) | SSTMAC_RMA_WRITE_FLAGS_DEF;
-
-  return _sstmac_rma(sstmac_ep, SSTMAC_FAB_RQ_RDMA_WRITE,
-			 (uint64_t)msg->msg_iov[0].iov_base,
-			 msg->msg_iov[0].iov_len, msg->desc ? msg->desc[0] : NULL,
-			 msg->addr, msg->rma_iov[0].addr, msg->rma_iov[0].key,
-			 msg->context, flags, msg->data);
-#endif
-  return 0;
+  return -FI_ENOSYS;
 }
 
 DIRECT_FN STATIC ssize_t sstmac_ep_rma_inject(struct fid_ep *ep, const void *buf,
 					    size_t len, fi_addr_t dest_addr,
 					    uint64_t addr, uint64_t key)
 {
-#if 0
-	struct sstmac_fid_ep *sstmac_ep;
-	uint64_t flags;
-
-	if (!ep) {
-		return -FI_EINVAL;
-	}
-
-	sstmac_ep = container_of(ep, struct sstmac_fid_ep, ep_fid);
-  assert(SSTMAC_EP_RDM_DGM_MSG(sstmac_ep->type));
-
-  flags = sstmac_ep->op_flags | FI_INJECT | SSTMAC_SUPPRESS_COMPLETION |
-      SSTMAC_RMA_WRITE_FLAGS_DEF;
-
-  return _sstmac_rma(sstmac_ep, SSTMAC_FAB_RQ_RDMA_WRITE,
-			 (uint64_t)buf, len, NULL,
-			 dest_addr, addr, key,
-			 NULL, flags, 0);
-#endif
-  return 0;
+  return -FI_ENOSYS;
 }
 
 DIRECT_FN STATIC ssize_t
@@ -838,26 +774,7 @@ sstmac_ep_writedata(struct fid_ep *ep, const void *buf, size_t len, void *desc,
 		  uint64_t data, fi_addr_t dest_addr, uint64_t addr,
 		  uint64_t key, void *context)
 {
-#if 0
-	struct sstmac_fid_ep *sstmac_ep;
-	uint64_t flags;
-
-	if (!ep) {
-		return -FI_EINVAL;
-	}
-
-	sstmac_ep = container_of(ep, struct sstmac_fid_ep, ep_fid);
-  assert(SSTMAC_EP_RDM_DGM_MSG(sstmac_ep->type));
-
-	flags = sstmac_ep->op_flags | FI_REMOTE_CQ_DATA |
-      SSTMAC_RMA_WRITE_FLAGS_DEF;
-
-  return _sstmac_rma(sstmac_ep, SSTMAC_FAB_RQ_RDMA_WRITE,
-			 (uint64_t)buf, len, desc,
-			 dest_addr, addr, key,
-			 context, flags, data);
-#endif
-  return 0;
+  return sstmaci_ep_write(ep, buf, len, dest_addr, addr, context, data, FI_REMOTE_CQ_DATA);
 }
 
 DIRECT_FN STATIC ssize_t
@@ -865,26 +782,7 @@ sstmac_ep_rma_injectdata(struct fid_ep *ep, const void *buf, size_t len,
 		       uint64_t data, fi_addr_t dest_addr, uint64_t addr,
 		       uint64_t key)
 {
-#if 0
-	struct sstmac_fid_ep *sstmac_ep;
-	uint64_t flags;
-
-	if (!ep) {
-		return -FI_EINVAL;
-	}
-
-	sstmac_ep = container_of(ep, struct sstmac_fid_ep, ep_fid);
-  assert(SSTMAC_EP_RDM_DGM_MSG(sstmac_ep->type));
-
-	flags = sstmac_ep->op_flags | FI_INJECT | FI_REMOTE_CQ_DATA |
-      SSTMAC_SUPPRESS_COMPLETION | SSTMAC_RMA_WRITE_FLAGS_DEF;
-
-  return _sstmac_rma(sstmac_ep, SSTMAC_FAB_RQ_RDMA_WRITE,
-			 (uint64_t)buf, len, NULL,
-			 dest_addr, addr, key,
-			 NULL, flags, data);
-#endif
-  return 0;
+  return -FI_ENOSYS;
 }
 
 DIRECT_FN STATIC ssize_t sstmac_ep_trecv(struct fid_ep *ep, void *buf, size_t len,
@@ -1448,486 +1346,120 @@ err:
 
 extern "C" int sstmac_ep_close(fid_t fid)
 {
-	int ret = FI_SUCCESS;
-#if 0
-	struct sstmac_fid_ep *ep;
-	int references_held;
-
-  SSTMAC_TRACE(FI_LOG_EP_CTRL, "\n");
-
-	ep = container_of(fid, struct sstmac_fid_ep, ep_fid.fid);
-
-	references_held = _sstmac_ref_put(ep);
-	if (references_held)
-    SSTMAC_INFO(FI_LOG_EP_CTRL, "failed to fully close ep due "
-			  "to lingering references. references=%i ep=%p\n",
-			  references_held, ep);
-#endif
-	return ret;
+  sstmac_fid_ep* ep = (sstmac_fid_ep*) fid;
+  free(ep);
+  return FI_SUCCESS;
 }
 
 DIRECT_FN extern "C" int sstmac_ep_bind(fid_t fid, struct fid *bfid, uint64_t flags)
 {
-	int ret = FI_SUCCESS;
+  //this can always be cast to an endpiont regardless of whether
+  //it is a simple endpoint or tx/rx context
+  sstmac_fid_ep* ep = (sstmac_fid_ep*) fid;
+  FabricTransport* tport = (FabricTransport*) ep->domain->fabric->tport;
+  switch(bfid->fclass)
+  {
+    case FI_CLASS_EQ: {
+      sstmac_fid_eq* eq = (sstmac_fid_eq*) bfid;
+      if (ep->domain->fabric != eq->fabric) {
+        return -FI_EINVAL;
+      }
+      ep->eq = eq;
+      break;
+    }
+    case FI_CLASS_CQ: {
+      sstmac_fid_cq* cq = (sstmac_fid_cq*) bfid;
 
+      if (ep->domain != cq->domain) {
+        return -FI_EINVAL;
+      }
 
-#if 0
-	struct sstmac_fid_ep  *ep;
-	struct sstmac_fid_eq *eq;
-	struct sstmac_fid_av  *av;
-	struct sstmac_fid_cq  *cq;
-	struct sstmac_fid_stx *stx;
-	struct sstmac_fid_cntr *cntr;
-	struct sstmac_fid_trx *trx_priv;
-	struct sstmac_nic_attr nic_attr = {0};
+      if (flags & FI_TRANSMIT) {
+        if (ep->send_cq) {
+          return -FI_EINVAL; //can't rebind send CQ
+        }
+        ep->send_cq = cq;
+        if (flags & FI_SELECTIVE_COMPLETION) {
+          //for now, don't allow selective completion
+          //all messages will generate completion entries
+          return -FI_EINVAL;
+        }
+      }
 
-  SSTMAC_TRACE(FI_LOG_EP_CTRL, "\n");
+      if (flags & FI_RECV) {
+        if (ep->recv_cq) {
+          return -FI_EINVAL;
+        }
+        //TODO ep->rx_id = tport->allocateRecvQueue(ep->recv_cq->id);
+        ep->recv_cq = cq;
+        if (flags & FI_SELECTIVE_COMPLETION) {
+          //for now, don't allow selective completion
+          //all messages will generate completion entries
+          return -FI_EINVAL;
+        }
+      }
+      break;
+    }
+    case FI_CLASS_AV: {
+      sstmac_fid_av* av = (sstmac_fid_av*) bfid;
+      if (ep->domain != av->domain) {
+        return -FI_EINVAL;
+      }
+      break;
+    }
+    case FI_CLASS_CNTR: //TODO
+      return -FI_EINVAL;
+    case FI_CLASS_MR: //TODO
+      return -FI_EINVAL;
+    case FI_CLASS_SRX_CTX:
 
-	switch (fid->fclass) {
-	case FI_CLASS_TX_CTX:
-	case FI_CLASS_RX_CTX:
-		trx_priv = container_of(fid, struct sstmac_fid_trx, ep_fid);
-		ep = trx_priv->ep;
-		break;
-	default:
-		ep = container_of(fid, struct sstmac_fid_ep, ep_fid.fid);
-	}
+    case FI_CLASS_STX_CTX:
+      //we really don't need to do anything here
+      //in some sense, all sstmacro endpoints are shared transmit contexts
+      break;
+    default:
+      return -FI_ENOSYS;
+      break;
 
-	ret = ofi_ep_bind_valid(&sstmac_prov, bfid, flags);
-	if (ret)
-		return ret;
-
-	/*
-	 * Per fi_endpoint man page, can't bind an object
-	 * to an ep after its been enabled.
-	 * For scalable endpoints, the rx/tx contexts are bound to the same
-	 * sstmac_ep so we allow enabling of the tx before binding the rx and
-	 * vice versa.
-	 */
-	switch (fid->fclass) {
-	case FI_CLASS_TX_CTX:
-		if (ep->send_cq && ep->tx_enabled) {
-			return -FI_EOPBADSTATE;
-		}
-		break;
-	case FI_CLASS_RX_CTX:
-		if (ep->recv_cq && ep->rx_enabled) {
-			return -FI_EOPBADSTATE;
-		}
-		break;
-	default:
-		if ((ep->send_cq && ep->tx_enabled) ||
-			(ep->recv_cq && ep->rx_enabled)) {
-			return -FI_EOPBADSTATE;
-		}
-	}
-
-	switch (bfid->fclass) {
-	case FI_CLASS_EQ:
-		eq = container_of(bfid, struct sstmac_fid_eq, eq_fid.fid);
-		if (ep->domain->fabric != eq->fabric) {
-			ret = -FI_EINVAL;
-			break;
-		}
-
-		if (ep->eq) {
-			ret = -FI_EINVAL;
-			break;
-		}
-
-		ep->eq = eq;
-		_sstmac_eq_poll_obj_add(eq, &ep->ep_fid.fid);
-		_sstmac_ref_get(eq);
-
-    SSTMAC_DEBUG(FI_LOG_EP_CTRL, "Bound EQ to EP: %p, %p\n", eq, ep);
-		break;
-	case FI_CLASS_CQ:
-		cq = container_of(bfid, struct sstmac_fid_cq, cq_fid.fid);
-		if (ep->domain != cq->domain) {
-			ret = -FI_EINVAL;
-			break;
-		}
-		if (flags & FI_TRANSMIT) {
-			/* don't allow rebinding */
-			if (ep->send_cq) {
-				ret = -FI_EINVAL;
-				break;
-			}
-
-			ep->send_cq = cq;
-			if (flags & FI_SELECTIVE_COMPLETION) {
-				ep->send_selective_completion = 1;
-			}
-
-			_sstmac_ref_get(cq);
-		}
-		if (flags & FI_RECV) {
-			/* don't allow rebinding */
-			if (ep->recv_cq) {
-				ret = -FI_EINVAL;
-				break;
-			}
-
-			ep->recv_cq = cq;
-			if (flags & FI_SELECTIVE_COMPLETION) {
-				ep->recv_selective_completion = 1;
-			}
-
-			_sstmac_ref_get(cq);
-		}
-		break;
-	case FI_CLASS_AV:
-		av = container_of(bfid, struct sstmac_fid_av, av_fid.fid);
-		if (ep->domain != av->domain) {
-			ret = -FI_EINVAL;
-			break;
-		}
-		ep->av = av;
-		_sstmac_ep_init_vc(ep);
-		_sstmac_ref_get(ep->av);
-		break;
-	case FI_CLASS_CNTR:
-		cntr = container_of(bfid, struct sstmac_fid_cntr, cntr_fid.fid);
-		if (ep->domain != cntr->domain) {
-			ret = -FI_EINVAL;
-			break;
-		}
-
-		if (flags & FI_SEND) {
-			/* don't allow rebinding */
-			if (ep->send_cntr) {
-        SSTMAC_WARN(FI_LOG_EP_CTRL,
-					  "cannot rebind send counter (%p)\n",
-					  cntr);
-				ret = -FI_EINVAL;
-				break;
-			}
-			ep->send_cntr = cntr;
-			_sstmac_ref_get(cntr);
-		}
-
-		if (flags & FI_RECV) {
-			/* don't allow rebinding */
-			if (ep->recv_cntr) {
-        SSTMAC_WARN(FI_LOG_EP_CTRL,
-					  "cannot rebind recv counter (%p)\n",
-					  cntr);
-				ret = -FI_EINVAL;
-				break;
-			}
-			ep->recv_cntr = cntr;
-			_sstmac_ref_get(cntr);
-		}
-
-		if (flags & FI_WRITE) {
-			/* don't allow rebinding */
-			if (ep->write_cntr) {
-        SSTMAC_WARN(FI_LOG_EP_CTRL,
-					  "cannot rebind write counter (%p)\n",
-					  cntr);
-				ret = -FI_EINVAL;
-				break;
-			}
-			ep->write_cntr = cntr;
-			_sstmac_ref_get(cntr);
-		}
-
-		if (flags & FI_READ) {
-			/* don't allow rebinding */
-			if (ep->read_cntr) {
-        SSTMAC_WARN(FI_LOG_EP_CTRL,
-					  "cannot rebind read counter (%p)\n",
-					  cntr);
-				ret = -FI_EINVAL;
-				break;
-			}
-			ep->read_cntr = cntr;
-			_sstmac_ref_get(cntr);
-		}
-
-		if (flags & FI_REMOTE_WRITE) {
-			/* don't allow rebinding */
-			if (ep->rwrite_cntr) {
-        SSTMAC_WARN(FI_LOG_EP_CTRL,
-					  "cannot rebind rwrite counter (%p)\n",
-					  cntr);
-				ret = -FI_EINVAL;
-				break;
-			}
-			ep->rwrite_cntr = cntr;
-			_sstmac_ref_get(cntr);
-		}
-
-		if (flags & FI_REMOTE_READ) {
-			/* don't allow rebinding */
-			if (ep->rread_cntr) {
-        SSTMAC_WARN(FI_LOG_EP_CTRL,
-					  "cannot rebind rread counter (%p)\n",
-					  cntr);
-				ret = -FI_EINVAL;
-				break;
-			}
-			ep->rread_cntr = cntr;
-			_sstmac_ref_get(cntr);
-		}
-
-		break;
-
-	case FI_CLASS_STX_CTX:
-		stx = container_of(bfid, struct sstmac_fid_stx, stx_fid.fid);
-		if (ep->domain != stx->domain) {
-			ret = -FI_EINVAL;
-			break;
-		}
-
-		/*
-		 * can only bind an STX to an ep opened with
-		 * FI_SHARED_CONTEXT ep_attr->tx_ctx_cnt and also
-		 * if a nic has not been previously bound
-		 */
-
-		if (ep->shared_tx == false || ep->nic) {
-			ret =  -FI_EOPBADSTATE;
-			break;
-		}
-
-		/*
-		 * we force allocation of a nic to make semantics
-		 * match the intent fi_endpoint man page, provide
-		 * a TX context (aka sstmacx nic) that can be shared
-		 * explicitly amongst endpoints
-		 */
-		if (stx->auth_key && ep->auth_key != stx->auth_key) {
-			ret = -FI_EINVAL;
-			break;
-		}
-
-		if (!stx->nic) {
-			nic_attr.must_alloc = true;
-			nic_attr.auth_key = ep->auth_key;
-			ret = sstmac_nic_alloc(ep->domain, &nic_attr,
-				&stx->nic);
-			if (ret != FI_SUCCESS) {
-        SSTMAC_WARN(FI_LOG_EP_CTRL,
-					 "_sstmac_nic_alloc call returned %d\n",
-					ret);
-					break;
-			}
-			stx->auth_key = nic_attr.auth_key;
-		}
-
-		ep->stx_ctx = stx;
-		_sstmac_ref_get(ep->stx_ctx);
-
-		ep->nic = stx->nic;
-		if (ep->nic->smsg_callbacks == NULL)
-			ep->nic->smsg_callbacks = sstmac_ep_smsg_callbacks;
-		_sstmac_ref_get(ep->nic);
-		break;
-
-	case FI_CLASS_MR:/*TODO: got to figure this one out */
-	default:
-		ret = -FI_ENOSYS;
-		break;
-	}
-#endif
-	return ret;
+  }
+  return FI_SUCCESS;
 }
 
-static void sstmac_ep_caps(struct sstmac_fid_ep *ep_priv, uint64_t caps)
-{
-	if (ofi_recv_allowed(caps & ~FI_TAGGED))
-		ep_priv->ep_ops.msg_recv_allowed = 1;
-
-	if (ofi_send_allowed(caps & ~FI_TAGGED))
-		ep_priv->ep_ops.msg_send_allowed = 1;
-
-	if (ofi_recv_allowed(caps & ~FI_MSG))
-		ep_priv->ep_ops.tagged_recv_allowed = 1;
-
-	if (ofi_send_allowed(caps & ~FI_MSG))
-		ep_priv->ep_ops.tagged_send_allowed = 1;
-
-}
 
 DIRECT_FN extern "C" int sstmac_ep_open(struct fid_domain *domain, struct fi_info *info,
 			   struct fid_ep **ep, void *context)
 {
-	int ret = FI_SUCCESS;
-#if 0
-	int err_ret;
-	struct sstmac_fid_domain *domain_priv;
-	struct sstmac_fid_ep *ep_priv;
-	struct sstmac_auth_key *auth_key;
+  sstmac_fid_ep* ep_impl = (sstmac_fid_ep*) calloc(1, sizeof(sstmac_fid_ep));
+  ep_impl->ep_fid.fid.fclass = FI_CLASS_EP;
+  ep_impl->ep_fid.fid.context = context;
+  ep_impl->ep_fid.fid.ops = &sstmac_ep_fi_ops;
+  ep_impl->ep_fid.ops = &sstmac_ep_ops;
+  ep_impl->ep_fid.msg = &sstmac_ep_msg_ops;
+  ep_impl->ep_fid.rma = &sstmac_ep_rma_ops;
+  ep_impl->ep_fid.tagged = &sstmac_ep_tagged_ops;
+  ep_impl->ep_fid.atomic = &sstmac_ep_atomic_ops;
+  ep_impl->domain = (sstmac_fid_domain*) domain;
+  ep_impl->caps = info->caps;
+  if (info->tx_attr){
+    ep_impl->op_flags = info->tx_attr->op_flags;
+  }
+  if (info->rx_attr){
+    ep_impl->op_flags = info->rx_attr->op_flags;
+  }
 
-  SSTMAC_TRACE(FI_LOG_EP_CTRL, "\n");
+  ep_impl->type = info->ep_attr->type;
 
-	if ((domain == NULL) || (info == NULL) || (ep == NULL) ||
-	    (info->ep_attr == NULL))
-		return -FI_EINVAL;
+  switch(ep_impl->type){
+  case FI_EP_DGRAM:
+  case FI_EP_RDM:
+  case FI_EP_MSG:
+    break;
+  default:
+    return -FI_EINVAL;
+  }
 
-	domain_priv = container_of(domain, struct sstmac_fid_domain, domain_fid);
-
-	if (FI_VERSION_LT(domain_priv->fabric->fab_fid.api_version,
-		FI_VERSION(1, 5)) &&
-		(info->ep_attr->auth_key || info->ep_attr->auth_key_size))
-		return -FI_EINVAL;
-
-#if 0
-  //ignore authorization keys for now
-	if (info->ep_attr->auth_key_size) {
-    auth_key = SSTMAC_GET_AUTH_KEY(info->ep_attr->auth_key,
-				info->ep_attr->auth_key_size,
-				domain_priv->using_vmdh);
-		if (!auth_key)
-			return -FI_EINVAL;
-	} else {
-		auth_key = domain_priv->auth_key;
-		assert(auth_key);
-	}
-#endif
-
-  ep_priv = (sstmac_fid_ep*) calloc(1, sizeof *ep_priv);
-	if (!ep_priv)
-		return -FI_ENOMEM;
-
-	/* Set up libfabric fid data. */
-	ep_priv->ep_fid.fid.fclass = FI_CLASS_EP;
-	ep_priv->ep_fid.fid.context = context;
-	ep_priv->ep_fid.fid.ops = &sstmac_ep_fi_ops;
-	ep_priv->ep_fid.ops = &sstmac_ep_ops;
-	ep_priv->ep_fid.msg = &sstmac_ep_msg_ops;
-	ep_priv->ep_fid.rma = &sstmac_ep_rma_ops;
-	ep_priv->ep_fid.tagged = &sstmac_ep_tagged_ops;
-	ep_priv->ep_fid.atomic = &sstmac_ep_atomic_ops;
-
-  /* Init SSTMAC data. */
-	ep_priv->auth_key = auth_key;
-	ep_priv->type = info->ep_attr->type;
-	ep_priv->domain = domain_priv;
-	_sstmac_ref_init(&ep_priv->ref_cnt, 1, __ep_destruct);
-  ep_priv->min_multi_recv = SSTMAC_OPT_MIN_MULTI_RECV_DEFAULT;
-	fastlock_init(&ep_priv->vc_lock);
-	ep_priv->progress_fn = NULL;
-	ep_priv->rx_progress_fn = NULL;
-	ep_priv->tx_enabled = false;
-	ep_priv->rx_enabled = false;
-	ep_priv->requires_lock = (domain_priv->thread_model !=
-				  FI_THREAD_COMPLETION);
-	ep_priv->info = fi_dupinfo(info);
-	ep_priv->info->addr_format = info->addr_format;
-
-  SSTMAC_DEBUG(FI_LOG_DEBUG, "ep(%p) is using addr_format(%s)\n", ep_priv,
-		  ep_priv->info->addr_format == FI_ADDR_STR ? "FI_ADDR_STR" :
-		  "FI_ADDR_SSTMAC");
-
-	if (info->src_addr) {
-		memcpy(&ep_priv->src_addr, info->src_addr,
-		       sizeof(struct sstmac_ep_name));
-	}
-
-	if (info->dest_addr) {
-		memcpy(&ep_priv->dest_addr, info->dest_addr,
-		       sizeof(struct sstmac_ep_name));
-	}
-
-  ret = __init_tag_storages(ep_priv, SSTMAC_TAG_LIST,
-				  ep_priv->type == FI_EP_MSG ? 0 : 1);
-	if (ret)
-		goto err_tag_init;
-
-	ret = __fr_freelist_init(ep_priv);
-	if (ret != FI_SUCCESS) {
-    SSTMAC_WARN(FI_LOG_EP_CTRL,
-			 "Error allocating sstmac_fab_req freelist (%s)",
-			 fi_strerror(-ret));
-		goto err_fl_init;
-	}
-
-	ep_priv->shared_tx = (info->ep_attr->tx_ctx_cnt == FI_SHARED_CONTEXT) ?
-				true : false;
-	/*
-	 * try out XPMEM
-	 */
-	ret = _sstmac_xpmem_handle_create(domain_priv,
-					&ep_priv->xpmem_hndl);
-	if (ret != FI_SUCCESS) {
-    SSTMAC_WARN(FI_LOG_EP_CTRL,
-			  "_sstmac_xpmem_handl_create returned %s\n",
-			  fi_strerror(-ret));
-	}
-
-	/* Initialize caps, modes, permissions, behaviors. */
-  ep_priv->caps = info->caps & SSTMAC_EP_CAPS_FULL;
-
-	if (ep_priv->info->tx_attr)
-		ep_priv->op_flags = ep_priv->info->tx_attr->op_flags;
-	if (ep_priv->info->rx_attr)
-		ep_priv->op_flags |= ep_priv->info->rx_attr->op_flags;
-  ep_priv->op_flags &= SSTMAC_EP_OP_FLAGS;
-
-	sstmac_ep_caps(ep_priv, ep_priv->caps);
-
-	ret = _sstmac_ep_nic_init(domain_priv, ep_priv->info, ep_priv);
-	if (ret != FI_SUCCESS) {
-    SSTMAC_WARN(FI_LOG_EP_CTRL,
-			  "_sstmac_ep_nic_init returned %d\n",
-			  ret);
-		goto err_nic_init;
-	}
-
-	/* Do EP type specific initialization. */
-	switch (ep_priv->type) {
-	case FI_EP_DGRAM:
-	case FI_EP_RDM:
-		ret = _sstmac_ep_unconn_open(domain_priv, ep_priv->info, ep_priv);
-		if (ret != FI_SUCCESS) {
-      SSTMAC_INFO(FI_LOG_EP_CTRL,
-				  "_sstmac_ep_unconn_open() failed, err: %d\n",
-				  ret);
-			goto err_type_init;
-		}
-		break;
-	case FI_EP_MSG:
-		ret = _sstmac_ep_msg_open(domain_priv, ep_priv->info, ep_priv);
-		if (ret != FI_SUCCESS) {
-      SSTMAC_INFO(FI_LOG_EP_CTRL,
-				  "_sstmac_ep_msg_open() failed, err: %d\n",
-				  ret);
-			goto err_type_init;
-		}
-		break;
-	default:
-		ret = -FI_EINVAL;
-		goto err_type_init;
-	}
-
-	_sstmac_ref_get(ep_priv->domain);
-
-	*ep = &ep_priv->ep_fid;
-	return ret;
-
-err_type_init:
-	if (ep_priv->nic)
-		_sstmac_nic_free(ep_priv->nic);
-	_sstmac_cm_nic_free(ep_priv->cm_nic);
-err_nic_init:
-	if (ep_priv->xpmem_hndl) {
-		err_ret = _sstmac_xpmem_handle_destroy(ep_priv->xpmem_hndl);
-		if (err_ret != FI_SUCCESS) {
-      SSTMAC_WARN(FI_LOG_EP_CTRL,
-				  "_sstmac_xpmem_handle_destroy returned %s\n",
-				  fi_strerror(-err_ret));
-		}
-	}
-
-	__fr_freelist_destroy(ep_priv);
-err_fl_init:
-	__destruct_tag_storages(ep_priv);
-err_tag_init:
-	free(ep_priv);
-#endif
-	return ret;
+  *ep = (fid_ep*) ep_impl;
+  return FI_SUCCESS;
 }
 
 DIRECT_FN STATIC ssize_t sstmac_ep_cancel(fid_t fid, void *context)
@@ -2049,14 +1581,7 @@ static int
 sstmac_ep_ops_open(struct fid *fid, const char *ops_name, uint64_t flags,
 		     void **ops, void *context)
 {
-	int ret = FI_SUCCESS;
-#if 0
-	if (strcmp(ops_name, FI_SSTMAC_EP_OPS_1) == 0)
-		*ops = &sstmac_ops_ep;
-	else
-		ret = -FI_EINVAL;
-#endif
-	return ret;
+  return -FI_EINVAL;
 }
 
 DIRECT_FN STATIC extern "C" int sstmac_ep_getopt(fid_t fid, int level, int optname,
@@ -2126,67 +1651,13 @@ extern "C" int sstmac_getopt(fid_t fid, int level, int optname,
 DIRECT_FN STATIC extern "C" int sstmac_ep_setopt(fid_t fid, int level, int optname,
 				    const void *optval, size_t optlen)
 {
-#if 0
-	struct sstmac_fid_ep *sstmac_ep;
-
-	sstmac_ep = container_of(fid, struct sstmac_fid_ep, ep_fid.fid);
-
-	switch (optname) {
-	case FI_OPT_MIN_MULTI_RECV:
-		if (optlen != sizeof(size_t))
-			return -FI_EINVAL;
-		/*
-		 * see https://github.com/ofi-cray/libfabric-cray/issues/1120
-		 */
-		if (*(size_t *)optval == 0UL)
-			return -FI_EINVAL;
-		sstmac_ep->min_multi_recv = *(size_t *)optval;
-		break;
-	default:
-		return -FI_ENOPROTOOPT;
-	}
-#endif
-	return 0;
+  return -FI_ENOPROTOOPT;
 }
 
 extern "C" int sstmac_setopt(fid_t fid, int level, int optname,
 				    const void *optval, size_t optlen)
 {
-        ssize_t ret;
-#if 0
-        struct sstmac_fid_ep *ep;
-        struct sstmac_fid_trx *trx_ep;
-
-        SSTMAC_TRACE(FI_LOG_EP_CTRL, "\n");
-
-	if (!fid || !optval)
-		return -FI_EINVAL;
-	else if (level != FI_OPT_ENDPOINT)
-		return -FI_ENOPROTOOPT;
-
-        switch (fid->fclass) {
-        case FI_CLASS_EP:
-                ret = sstmac_ep_setopt(fid, level, optname, optval, optlen);
-                break;
-
-        case FI_CLASS_RX_CTX:
-        case FI_CLASS_TX_CTX:
-                trx_ep = container_of(fid, struct sstmac_fid_trx, ep_fid);
-                ep = trx_ep->ep;
-                ret = sstmac_ep_setopt(&ep->ep_fid.fid, level, optname, optval,
-                        optlen);
-                break;
-        /* not supported yet */
-        case FI_CLASS_SRX_CTX:
-        case FI_CLASS_STX_CTX:
-                return -FI_ENOENT;
-
-        default:
-                SSTMAC_WARN(FI_LOG_EP_CTRL, "Invalid fid type\n");
-                return -FI_EINVAL;
-        }
-#endif
-        return ret;
+  return -FI_EINVAL;
 }
 
 DIRECT_FN STATIC ssize_t sstmac_ep_rx_size_left(struct fid_ep *ep)
@@ -2256,7 +1727,7 @@ DIRECT_FN STATIC extern "C" int sstmac_tx_context(struct fid_ep *ep, int index,
 				     struct fi_tx_attr *attr,
 				     struct fid_ep **tx_ep, void *context)
 {
-	return -FI_ENOSYS;
+  return -FI_ENOSYS;
 }
 
 __attribute__((unused))

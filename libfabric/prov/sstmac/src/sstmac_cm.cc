@@ -50,6 +50,8 @@ Questions? Contact sst-macro-help@sandia.gov
 #include "sstmac.h"
 #include "sstmac_av.h"
 
+#include <sprockit/errors.h>
+
 DIRECT_FN STATIC extern "C" int sstmac_setname(fid_t fid, void *addr, size_t addrlen);
 DIRECT_FN STATIC extern "C" int sstmac_getname(fid_t fid, void *addr, size_t *addrlen);
 DIRECT_FN STATIC extern "C" int sstmac_getpeer(struct fid_ep *ep, void *addr, size_t *addrlen);
@@ -129,6 +131,15 @@ struct fi_ops_cm sstmac_pep_ops_cm = {
 
 DIRECT_FN STATIC extern "C" int sstmac_getname(fid_t fid, void *addr, size_t *addrlen)
 {
+  sstmac_fid_ep* ep = (sstmac_fid_ep*) fid;
+  if (ep->domain->addr_format == FI_ADDR_STR){
+
+  } else if (ep->domain->addr_format == FI_ADDR_SSTMAC){
+
+  } else {
+    spkt_abort_printf("internal error: got bad addr format");
+  }
+
 	int ret;
 	size_t len = 0, cpylen;
 #if 0

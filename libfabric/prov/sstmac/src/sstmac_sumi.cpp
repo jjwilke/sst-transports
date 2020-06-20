@@ -11,3 +11,6 @@ FabricTransport* sstmac_fabric()
     tp->init();
   return tp;
 }
+
+constexpr uint64_t FabricMessage::no_tag;
+constexpr uint64_t FabricMessage::no_imm_data;

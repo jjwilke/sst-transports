@@ -126,18 +126,6 @@ static struct fi_ops sstmac_fi_eq_ops = {
   .ops_open = fi_no_ops_open
 };
 
-struct sstmac_eq_error {};
-struct sstmac_eq_event {};
-
-struct sstmac_fid_eq {
-  struct fid_eq eq_fid;
-  struct sstmac_fid_fabric* fabric;
-  struct fid_wait* wait;
-  struct fi_eq_attr attr;
-  std::vector<sstmac_eq_error> errors;
-  std::vector<sstmac_eq_event> events;
-};
-
 DIRECT_FN extern "C" int sstmac_eq_open(struct fid_fabric *fabric, struct fi_eq_attr *attr, struct fid_eq **eq_ptr, void *context)
 {
 	if (!fabric)

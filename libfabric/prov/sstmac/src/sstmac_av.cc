@@ -148,11 +148,11 @@ DIRECT_FN STATIC extern "C" int sstmac_av_lookup(struct fid_av *av, fi_addr_t fi
 {
   sstmac_fid_av* av_impl = (sstmac_fid_av*) av;
   if (av_impl->domain->addr_format == FI_ADDR_SSTMAC){
-    if (*addrlen < sizeof(uint32_t)){
+    if (*addrlen < sizeof(uint64_t)){
       return -FI_EINVAL;
     }
-    uint32_t* addr_int = (uint32_t*) addr;
-    *addr_int = (uint32_t) fi_addr;
+    uint64_t* addr_int = (uint64_t*) addr;
+    *addr_int = fi_addr;
   } else if (av_impl->domain->addr_format == FI_ADDR_STR){
     if (*addrlen < SSTMAC_MAX_ADDR_LEN){
       return -FI_EINVAL;
@@ -179,7 +179,7 @@ DIRECT_FN STATIC extern "C" int sstmac_av_insert(struct fid_av *av, const void *
       addr_str += SSTMAC_MAX_ADDR_LEN;
     }
   } else if (av_impl->domain->addr_format == FI_ADDR_SSTMAC) {
-    uint32_t* addr_list = (uint32_t*) addr;
+    uint64_t* addr_list = (uint64_t*) addr;
     for (int i=0; i < count; ++i){
       fi_addr[i] = addr_list[i];
     }
@@ -221,13 +221,16 @@ DIRECT_FN const char *sstmac_av_straddr(struct fid_av *av,
   if (av_impl->domain->addr_format == FI_ADDR_STR){
     ::strcpy(ret, (const char*)addr);
   } else if (av_impl->domain->addr_format == FI_ADDR_SSTMAC) {
-    uint32_t* addr_ptr = (uint32_t*) addr;
-    uint64_t addr_u64 = (uint64_t) *addr_ptr;
-    sprintf(ret, SSTMAC_ADDR_FORMAT_STR, addr_u64);
+    uint64_t* addr_ptr = (uint64_t*) addr;
+    uint32_t rank = ADDR_RANK(*addr_ptr);
+    uint16_t cq = ADDR_CQ(*addr_ptr);
+    uint16_t rx = ADDR_QUEUE(*addr_ptr);
+    sprintf(ret, "%" PRIu32 ".%" PRIu16 ".%" PRIu16,
+            rank, cq, rx);
   } else {
     spkt_abort_printf("internal error: got addr format that isn't SSTMAC or STR");
   }
-  *len = SSTMAC_MAX_ADDR_LEN;
+  *len = ::strlen(ret);
   return ret;
 }
 

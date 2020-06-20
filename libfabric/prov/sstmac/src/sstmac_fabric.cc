@@ -221,23 +221,9 @@ static void sstmac_fini(void)
 }
 
 #define SSTMAC_EP_CAPS   \
-  FI_MSG | FI_RMA | FI_TAGGED | FI_ATOMICS | \
+  (FI_MSG | FI_RMA | FI_TAGGED | FI_ATOMICS | \
   FI_DIRECTED_RECV | FI_READ | FI_NAMED_RX_CTX | \
   FI_WRITE | FI_SEND | FI_RECV | FI_REMOTE_READ | FI_REMOTE_WRITE)
-
-#define SSTMAC_DOM_CAPS \
-  FI_LOCAL_COMM | FI_REMOTE_COMM | FI_SHARED_AV
-
-#define SSTMAC_MAX_MSG_SIZE 1<<62
-//just make some arbitary, small value that's still useful
-#define SSTMAC_INJECT_SIZE  64
-//just allow a big queue
-#define SSTMAC_TX_SIZE_DEFAULT 1000
-#define SSTMAC_RX_SIZE_DEFAULT 1000
-//we have no limit on iov, but, seriously, who would use 1000?
-#define SSTMAC_MAX_MSG_IOV_LIMIT 1000
-#define SSTMAC_MAX_RMA_IOV_LIMIT 1000
-#define SSTMAC_MAX_INJECT_SIZE 64
 
 static struct fi_info *sstmac_allocinfo(void)
 {
@@ -414,7 +400,7 @@ static int sstmac_ep_getinfo(enum fi_ep_type ep_type, uint32_t version,
     }
 
     if (hints->caps){
-      if ((hints->caps & SSTMAC_EP_CAPS_FULL) != hints->caps){
+      if ((hints->caps & SSTMAC_EP_CAPS) != hints->caps){
         // app is requesting capabilities I don't have
         return -FI_ENODATA;
       } else {
@@ -449,7 +435,7 @@ static int sstmac_ep_getinfo(enum fi_ep_type ep_type, uint32_t version,
           }
         }
 
-        if ((hints->rx_attr->caps & SSTMAC_EP_CAPS_FULL) != hints->rx_attr->caps){
+        if ((hints->rx_attr->caps & SSTMAC_EP_CAPS) != hints->rx_attr->caps){
           //requesting more capabilities than I have
           return -FI_ENODATA;
         }
