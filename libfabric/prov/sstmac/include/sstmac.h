@@ -447,6 +447,7 @@ struct sstmac_fid_eq {
   struct fi_eq_attr attr;
 };
 
+struct sstmac_progress_queue;
 struct sstmac_fid_cq {
   struct fid_cq cq_fid;
   struct sstmac_fid_domain *domain;
@@ -454,6 +455,7 @@ struct sstmac_fid_cq {
   enum fi_cq_format format;
   size_t entry_size;
   struct fid_wait *wait;
+  sstmac_progress_queue* queue;
 };
 
 struct sstmac_fid_srx {
@@ -529,6 +531,10 @@ void _sstmac_init(void);
 #ifdef __cplusplus
 }
 
+#include <sstmac/software/process/progress_queue.h>
+#include <sumi/message.h>
+#include <sstmac_sumi.hpp>
+
 struct ErrorDeallocate {
   template <class T, class Lambda>
   ErrorDeallocate(T* t, Lambda&& l) :
@@ -547,6 +553,55 @@ struct ErrorDeallocate {
   void* ptr;
   std::function<void(void*)> dealloc;
 };
+
+struct RecvQueue {
+
+  struct Recv {
+    uint32_t size;
+    void* buf;
+    Recv(uint32_t s, void* b) :
+      size(s), buf(b)
+    {
+    }
+  };
+
+  struct TaggedRecv {
+    uint32_t size;
+    void* buf;
+    uint64_t tag;
+    uint64_t tag_ignore;
+    TaggedRecv(uint32_t s, void* b, uint64_t t, uint64_t ti) :
+      size(s), buf(b), tag(t), tag_ignore(ti)
+    {
+    }
+  };
+
+  RecvQueue(sstmac::sw::OperatingSystem* os) :
+    progress(os)
+  {
+  }
+
+  bool matches(FabricMessage* msg, uint64_t tag, uint64_t ignore){
+    return (msg->tag() & ~ignore) == (tag & ~ignore);
+  }
+
+  std::list<Recv> recvs;
+  std::list<TaggedRecv> tagged_recvs;
+  std::list<FabricMessage*> unexp_recvs;
+  std::list<FabricMessage*> unexp_tagged_recvs;
+
+  sstmac::sw::SingleProgressQueue<sumi::Message> progress;
+
+  void finishMatch(void* buf, uint32_t size, FabricMessage* fmsg);
+
+  void matchTaggedRecv(FabricMessage* msg);
+
+  void postRecv(uint32_t size, void* buf, uint64_t tag, uint64_t tag_ignore, bool tagged);
+
+  void incoming(sumi::Message* msg);
+
+};
+
 
 #endif
 

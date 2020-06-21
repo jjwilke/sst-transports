@@ -117,6 +117,7 @@ class FabricTransport : public sumi::SimTransport {
 
  private:
   bool inited_;
+  std::vector<FabricMessage*> unmatched_recvs_;
 };
 
 FabricTransport* sstmac_fabric();

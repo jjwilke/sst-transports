@@ -151,11 +151,12 @@ static ssize_t sstmaci_cq_read(bool blocking,
 {
   sstmac_fid_cq* cq_impl = (sstmac_fid_cq*) cq;
   FabricTransport* tport = (FabricTransport*) cq_impl->domain->fabric->tport;
+  RecvQueue* rq = (RecvQueue*) cq_impl->queue;
 
   size_t done = 0;
   while (done < count){
     double timeout_s = (blocking && timeout > 0) ? timeout*1e-3 : -1;
-    sumi::Message* msg = tport->poll(blocking, cq_impl->id, timeout_s);
+    sumi::Message* msg = rq->progress.front(blocking, timeout_s);
     if (!msg){
       break;
     }
@@ -237,7 +238,6 @@ DIRECT_FN extern "C" int sstmac_cq_open(struct fid_domain *domain, struct fi_cq_
   cq_impl->id = id;
   cq_impl->format = attr->format;
 
-
   struct fi_wait_attr requested = {
     .wait_obj = attr->wait_obj,
     .flags = 0
@@ -257,5 +257,78 @@ DIRECT_FN extern "C" int sstmac_cq_open(struct fid_domain *domain, struct fi_cq_
   }
   *cq = (fid_cq*) cq_impl;
   return FI_SUCCESS;
+}
+
+void RecvQueue::finishMatch(void* buf, uint32_t size, FabricMessage *msg)
+{
+  //found a match
+  if (size >= msg->payloadBytes()){
+    if (buf && msg->localBuffer()){
+      msg->matchRecv(buf);
+    }
+    progress.incoming(msg);
+  } else {
+    delete msg;
+  }
+}
+
+void RecvQueue::matchTaggedRecv(FabricMessage* msg){
+  for (auto it = tagged_recvs.begin(); it != tagged_recvs.end(); ++it){
+    auto tmp = it++;
+    TaggedRecv& r = *tmp;
+    if (matches(msg, r.tag, r.tag_ignore)){
+      finishMatch(r.buf, r.size, msg);
+      tagged_recvs.erase(tmp);
+      return;
+    }
+  }
+  unexp_tagged_recvs.push_back(msg);
+}
+
+void RecvQueue::postRecv(uint32_t size, void* buf, uint64_t tag, uint64_t tag_ignore, bool tagged){
+  if (tagged){
+    if (unexp_tagged_recvs.empty()){
+      tagged_recvs.emplace_back(size, buf, tag, tag_ignore);
+    } else {
+      for (auto it = unexp_tagged_recvs.begin(); it != unexp_tagged_recvs.end(); ++it){
+        auto tmp = it++;
+        FabricMessage* msg = *tmp;
+        if (matches(msg, tag, tag_ignore)){
+          finishMatch(buf, size, msg);
+          return;
+        }
+      }
+    }
+    //nothing matched
+    tagged_recvs.emplace_back(size, buf, tag, tag_ignore);
+  } else {
+    if (unexp_recvs.empty()){
+      recvs.emplace_back(size, buf);
+    } else {
+      FabricMessage* msg = unexp_recvs.front();
+      unexp_recvs.pop_front();;
+      finishMatch(buf, size, msg);
+    }
+  }
+}
+
+void RecvQueue::incoming(sumi::Message* msg){
+  FabricMessage* fmsg = static_cast<FabricMessage*>(msg);
+  if (fmsg->sstmac::hw::NetworkMessage::type() == sstmac::hw::NetworkMessage::posted_send){
+    if (fmsg->flags() & FI_TAGGED){
+      matchTaggedRecv(fmsg);
+    } else {
+      if (recvs.empty()){
+        unexp_recvs.push_back(fmsg);
+      } else {
+        Recv& r = recvs.front();
+        finishMatch(r.buf, r.size, fmsg);
+        recvs.pop_front();
+      }
+    }
+  } else {
+    //all other messages go right through
+    progress.incoming(fmsg);
+  }
 }
 
