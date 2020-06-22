@@ -218,4 +218,7 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config.h.in ${CMAKE_CURRENT_BINARY_DI
 install(FILES ${libfabric_headers}
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
+install(FILES ${rdmainclude_headers}
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/rdma
+)
 install(TARGETS fabric LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
