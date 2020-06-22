@@ -155,7 +155,7 @@ const struct fi_fabric_attr sstmac_fabric_attr = {
 	.prov_version = FI_VERSION(SSTMAC_MAJOR_VERSION, SSTMAC_MINOR_VERSION),
 };
 
-DIRECT_FN extern "C" int sstmac_fabric_trywait(struct fid_fabric *fabric, struct fid **fids, int count)
+extern "C" DIRECT_FN  int sstmac_fabric_trywait(struct fid_fabric *fabric, struct fid **fids, int count)
 {
 	return -FI_ENOSYS;
 }

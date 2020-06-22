@@ -53,7 +53,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 static int sstmac_srx_close(fid_t fid);
 static int sstmac_stx_close(fid_t fid);
 static int sstmac_domain_close(fid_t fid);
-DIRECT_FN extern "C" int sstmac_domain_bind(struct fid_domain *domain, struct fid *fid,
+extern "C" DIRECT_FN  int sstmac_domain_bind(struct fid_domain *domain, struct fid *fid,
 			       uint64_t flags);
 static int
 sstmac_domain_ops_open(struct fid *fid, const char *ops_name, uint64_t flags,
@@ -62,12 +62,12 @@ sstmac_domain_ops_open(struct fid *fid, const char *ops_name, uint64_t flags,
 DIRECT_FN STATIC extern "C" int sstmac_stx_open(struct fid_domain *dom,
 				   struct fi_tx_attr *tx_attr,
 				   struct fid_stx **stx, void *context);
-DIRECT_FN extern "C" int sstmac_domain_bind(struct fid_domain *domain, struct fid *fid,
+extern "C" DIRECT_FN  int sstmac_domain_bind(struct fid_domain *domain, struct fid *fid,
 			       uint64_t flags);
-DIRECT_FN extern "C" int sstmac_srx_context(struct fid_domain *domain,
+extern "C" DIRECT_FN  int sstmac_srx_context(struct fid_domain *domain,
 			       struct fi_rx_attr *attr,
 			       struct fid_ep **rx_ep, void *context);
-DIRECT_FN extern "C" int sstmac_domain_open(struct fid_fabric *fabric, struct fi_info *info,
+extern "C" DIRECT_FN  int sstmac_domain_open(struct fid_fabric *fabric, struct fi_info *info,
 			       struct fid_domain **dom, void *context);
 
 
@@ -337,7 +337,7 @@ static const int32_t default_err_inject_count = 0;
 static const uint32_t default_dgram_progress_timeout = 100;
 static const uint32_t default_eager_auto_progress = 0;
 
-DIRECT_FN extern "C" int sstmac_domain_bind(struct fid_domain *domain, struct fid *fid,
+extern "C" DIRECT_FN  int sstmac_domain_bind(struct fid_domain *domain, struct fid *fid,
 			       uint64_t flags)
 {
 	return -FI_ENOSYS;
@@ -352,7 +352,7 @@ sstmac_domain_ops_open(struct fid *fid, const char *ops_name, uint64_t flags,
 
 
 
-DIRECT_FN extern "C" int sstmac_domain_open(struct fid_fabric *fabric, struct fi_info *info,
+extern "C" DIRECT_FN  int sstmac_domain_open(struct fid_fabric *fabric, struct fi_info *info,
              struct fid_domain **dom_ptr, void *context)
 {
   if (info->domain_attr->mr_mode & FI_MR_SCALABLE){
@@ -375,7 +375,7 @@ DIRECT_FN extern "C" int sstmac_domain_open(struct fid_fabric *fabric, struct fi
   return FI_SUCCESS;
 }
 
-DIRECT_FN extern "C" int sstmac_srx_context(struct fid_domain *domain,
+extern "C" DIRECT_FN  int sstmac_srx_context(struct fid_domain *domain,
 			       struct fi_rx_attr *attr,
 			       struct fid_ep **rx_ep, void *context)
 {

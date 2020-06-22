@@ -50,8 +50,8 @@ Questions? Contact sst-macro-help@sandia.gov
 
 static int sstmac_wait_control(struct fid *wait, int command, void *arg);
 extern "C" int sstmac_wait_close(struct fid *wait);
-DIRECT_FN extern "C" int sstmac_wait_wait(struct fid_wait *wait, int timeout);
-DIRECT_FN extern "C" int sstmac_wait_open(struct fid_fabric *fabric,
+extern "C" DIRECT_FN  int sstmac_wait_wait(struct fid_wait *wait, int timeout);
+extern "C" DIRECT_FN  int sstmac_wait_open(struct fid_fabric *fabric,
 			     struct fi_wait_attr *attr,
 			     struct fid_wait **waitset);
 
@@ -105,7 +105,7 @@ extern "C" void sstmaci_add_wait(struct fid_wait *wait, struct fid *wait_obj)
 }
 
 
-DIRECT_FN extern "C" int sstmac_wait_wait(struct fid_wait *wait, int timeout)
+extern "C" DIRECT_FN  int sstmac_wait_wait(struct fid_wait *wait, int timeout)
 {
 	int err = 0, ret;
 	char c;

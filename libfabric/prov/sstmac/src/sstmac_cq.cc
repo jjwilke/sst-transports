@@ -59,7 +59,7 @@ DIRECT_FN STATIC ssize_t sstmac_cq_readerr(struct fid_cq *cq,
 DIRECT_FN STATIC ssize_t sstmac_cq_sreadfrom(struct fid_cq *cq, void *buf,
 					   size_t count, fi_addr_t *src_addr,
 					   const void *cond, int timeout);
-DIRECT_FN extern "C" int sstmac_cq_open(struct fid_domain *domain, struct fi_cq_attr *attr,
+extern "C" DIRECT_FN  int sstmac_cq_open(struct fid_domain *domain, struct fi_cq_attr *attr,
 			   struct fid_cq **cq, void *context);
 DIRECT_FN STATIC const char *sstmac_cq_strerror(struct fid_cq *cq, int prov_errno,
 					      const void *prov_data, char *buf,
@@ -227,7 +227,7 @@ static int sstmac_cq_control(struct fid *cq, int command, void *arg)
 	}
 }
 
-DIRECT_FN extern "C" int sstmac_cq_open(struct fid_domain *domain, struct fi_cq_attr *attr,
+extern "C" DIRECT_FN  int sstmac_cq_open(struct fid_domain *domain, struct fi_cq_attr *attr,
 			   struct fid_cq **cq, void *context)
 {
   sstmac_fid_domain* domain_impl = (sstmac_fid_domain*) domain;

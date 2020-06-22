@@ -55,7 +55,7 @@ DIRECT_FN STATIC uint64_t sstmac_cntr_readerr(struct fid_cntr *cntr);
 DIRECT_FN STATIC extern "C" int sstmac_cntr_seterr(struct fid_cntr *cntr, uint64_t value);
 DIRECT_FN STATIC uint64_t sstmac_cntr_read(struct fid_cntr *cntr);
 DIRECT_FN STATIC extern "C" int sstmac_cntr_add(struct fid_cntr *cntr, uint64_t value);
-DIRECT_FN extern "C" int sstmac_cntr_open(struct fid_domain *domain,
+extern "C" DIRECT_FN  int sstmac_cntr_open(struct fid_domain *domain,
 			     struct fi_cntr_attr *attr,
 			     struct fid_cntr **cntr, void *context);
 static int sstmac_cntr_control(struct fid *cntr, int command, void *arg);
@@ -270,7 +270,7 @@ static int sstmac_cntr_control(struct fid *cntr, int command, void *arg)
 
 
 
-DIRECT_FN extern "C" int sstmac_cntr_open(struct fid_domain *domain,
+extern "C" DIRECT_FN  int sstmac_cntr_open(struct fid_domain *domain,
 			     struct fi_cntr_attr *attr,
 			     struct fid_cntr **cntr, void *context)
 {

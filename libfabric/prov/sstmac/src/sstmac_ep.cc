@@ -651,21 +651,21 @@ DIRECT_FN STATIC ssize_t sstmac_ep_tinjectdata(struct fid_ep *ep, const void *bu
   return -FI_ENOSYS;
 }
 
-DIRECT_FN extern "C" int sstmac_ep_atomic_valid(struct fid_ep *ep,
+extern "C" DIRECT_FN  int sstmac_ep_atomic_valid(struct fid_ep *ep,
 					  enum fi_datatype datatype,
 					  enum fi_op op, size_t *count)
 {
   return 0;
 }
 
-DIRECT_FN extern "C" int sstmac_ep_fetch_atomic_valid(struct fid_ep *ep,
+extern "C" DIRECT_FN  int sstmac_ep_fetch_atomic_valid(struct fid_ep *ep,
 						enum fi_datatype datatype,
 						enum fi_op op, size_t *count)
 {
   return 0;
 }
 
-DIRECT_FN extern "C" int sstmac_ep_cmp_atomic_valid(struct fid_ep *ep,
+extern "C" DIRECT_FN  int sstmac_ep_cmp_atomic_valid(struct fid_ep *ep,
 					      enum fi_datatype datatype,
 					      enum fi_op op, size_t *count)
 {
@@ -788,7 +788,7 @@ extern "C" int sstmac_ep_close(fid_t fid)
   return FI_SUCCESS;
 }
 
-DIRECT_FN extern "C" int sstmac_ep_bind(fid_t fid, struct fid *bfid, uint64_t flags)
+extern "C" DIRECT_FN  int sstmac_ep_bind(fid_t fid, struct fid *bfid, uint64_t flags)
 {
   //this can always be cast to an endpiont regardless of whether
   //it is a simple endpoint or tx/rx context
@@ -867,7 +867,7 @@ DIRECT_FN extern "C" int sstmac_ep_bind(fid_t fid, struct fid *bfid, uint64_t fl
 }
 
 
-DIRECT_FN extern "C" int sstmac_ep_open(struct fid_domain *domain, struct fi_info *info,
+extern "C" DIRECT_FN  int sstmac_ep_open(struct fid_domain *domain, struct fi_info *info,
 			   struct fid_ep **ep, void *context)
 {
   sstmac_fid_ep* ep_impl = (sstmac_fid_ep*) calloc(1, sizeof(sstmac_fid_ep));

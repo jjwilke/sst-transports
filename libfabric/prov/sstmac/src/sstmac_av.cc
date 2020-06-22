@@ -241,12 +241,12 @@ static int sstmac_av_close(fid_t fid)
   return FI_SUCCESS;
 }
 
-DIRECT_FN extern "C" int sstmac_av_bind(struct fid_av *av, struct fid *fid, uint64_t flags)
+extern "C" DIRECT_FN  int sstmac_av_bind(struct fid_av *av, struct fid *fid, uint64_t flags)
 {
 	return -FI_ENOSYS;
 }
 
-DIRECT_FN extern "C" int sstmac_av_open(struct fid_domain *domain, struct fi_av_attr *attr,
+extern "C" DIRECT_FN  int sstmac_av_open(struct fid_domain *domain, struct fi_av_attr *attr,
 			   struct fid_av **av, void *context)
 {
   sstmac_fid_av* av_impl = (sstmac_fid_av*) calloc(1, sizeof(sstmac_fid_av));

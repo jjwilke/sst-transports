@@ -59,14 +59,14 @@ DIRECT_FN STATIC extern "C" int sstmac_connect(struct fid_ep *ep, const void *ad
 				  const void *param, size_t paramlen);
 DIRECT_FN STATIC extern "C" int sstmac_accept(struct fid_ep *ep, const void *param,
 				 size_t paramlen);
-DIRECT_FN extern "C" int sstmac_pep_open(struct fid_fabric *fabric,
+extern "C" DIRECT_FN  int sstmac_pep_open(struct fid_fabric *fabric,
 			    struct fi_info *info, struct fid_pep **pep,
 			    void *context);
-DIRECT_FN extern "C" int sstmac_pep_bind(struct fid *fid, struct fid *bfid, uint64_t flags);
+extern "C" DIRECT_FN  int sstmac_pep_bind(struct fid *fid, struct fid *bfid, uint64_t flags);
 DIRECT_FN STATIC extern "C" int sstmac_reject(struct fid_pep *pep, fid_t handle,
 				 const void *param, size_t paramlen);
 DIRECT_FN STATIC int sstmac_shutdown(struct fid_ep *ep, uint64_t flags);
-DIRECT_FN extern "C" int sstmac_pep_listen(struct fid_pep *pep);
+extern "C" DIRECT_FN  int sstmac_pep_listen(struct fid_pep *pep);
 DIRECT_FN STATIC extern "C" int sstmac_pep_getopt(fid_t fid, int level, int optname,
              void *optval, size_t *optlen);
 static int sstmac_pep_close(fid_t fid);
@@ -692,7 +692,7 @@ static int sstmac_pep_close(fid_t fid)
 	return ret;
 }
 
-DIRECT_FN extern "C" int sstmac_pep_bind(struct fid *fid, struct fid *bfid, uint64_t flags)
+extern "C" DIRECT_FN  int sstmac_pep_bind(struct fid *fid, struct fid *bfid, uint64_t flags)
 {
 	int ret = FI_SUCCESS;
 #if 0
@@ -736,7 +736,7 @@ DIRECT_FN extern "C" int sstmac_pep_bind(struct fid *fid, struct fid *bfid, uint
 	return ret;
 }
 
-DIRECT_FN extern "C" int sstmac_pep_listen(struct fid_pep *pep)
+extern "C" DIRECT_FN  int sstmac_pep_listen(struct fid_pep *pep)
 {
 	int ret, errno_keep;
 #if 0
@@ -883,7 +883,7 @@ DIRECT_FN STATIC extern "C" int sstmac_reject(struct fid_pep *pep, fid_t handle,
 }
 
 
-DIRECT_FN extern "C" int sstmac_pep_open(struct fid_fabric *fabric,
+extern "C" DIRECT_FN  int sstmac_pep_open(struct fid_fabric *fabric,
 			    struct fi_info *info, struct fid_pep **pep,
 			    void *context)
 {

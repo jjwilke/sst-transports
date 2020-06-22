@@ -126,7 +126,7 @@ static struct fi_ops sstmac_fi_eq_ops = {
   .ops_open = fi_no_ops_open
 };
 
-DIRECT_FN extern "C" int sstmac_eq_open(struct fid_fabric *fabric, struct fi_eq_attr *attr, struct fid_eq **eq_ptr, void *context)
+extern "C" DIRECT_FN  int sstmac_eq_open(struct fid_fabric *fabric, struct fi_eq_attr *attr, struct fid_eq **eq_ptr, void *context)
 {
 	if (!fabric)
 		return -FI_EINVAL;
