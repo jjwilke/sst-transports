@@ -46,7 +46,7 @@ Questions? Contact sst-macro-help@sandia.gov
 #include "sstmac_poll.h"
 
 
-DIRECT_FN extern "C" int sstmac_poll_open(struct fid_domain *domain,
+extern "C" DIRECT_FN  int sstmac_poll_open(struct fid_domain *domain,
 			     struct fi_poll_attr *attr,
 			     struct fid_poll **pollset)
 {
@@ -54,18 +54,18 @@ DIRECT_FN extern "C" int sstmac_poll_open(struct fid_domain *domain,
 }
 
 
-DIRECT_FN extern "C" int sstmac_poll_poll(struct fid_poll *pollset, void **context, int count)
+extern "C" DIRECT_FN  int sstmac_poll_poll(struct fid_poll *pollset, void **context, int count)
 {
 	return -FI_ENOSYS;
 }
 
-DIRECT_FN extern "C" int sstmac_poll_add(struct fid_poll *pollset, struct fid *event_fid,
+extern "C" DIRECT_FN  int sstmac_poll_add(struct fid_poll *pollset, struct fid *event_fid,
 			    uint64_t flags)
 {
 	return -FI_ENOSYS;
 }
 
-DIRECT_FN extern "C" int sstmac_poll_del(struct fid_poll *pollset, struct fid *event_fid,
+extern "C" DIRECT_FN  int sstmac_poll_del(struct fid_poll *pollset, struct fid *event_fid,
 			    uint64_t flags)
 {
 	return -FI_ENOSYS;

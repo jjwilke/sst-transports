@@ -742,10 +742,11 @@ size_t ofi_datatype_size(enum fi_datatype datatype)
 	OFI_DEF_##ATOMICTYPE##_##FUNCNAME(op, uint64_t)			\
 	OFI_DEF_##ATOMICTYPE##_##FUNCNAME(op, float)			\
 	OFI_DEF_##ATOMICTYPE##_##FUNCNAME(op, double)			\
-	OFI_DEF_##ATOMICTYPE##_COMPLEX_##FUNCNAME(op ##_COMPLEX, float)	\
 	OFI_DEF_NOOP_##FUNCNAME						\
 	OFI_DEF_NOOP_##FUNCNAME						\
 	OFI_DEF_NOOP_##FUNCNAME
+
+//	OFI_DEF_##ATOMICTYPE##_COMPLEX_##FUNCNAME(op ##_COMPLEX, float)
 
 #define OFI_DEFINE_REALNO_HANDLERS(ATOMICTYPE, FUNCNAME, op)		\
 	OFI_DEF_##ATOMICTYPE##_##FUNCNAME(op, int8_t)			\

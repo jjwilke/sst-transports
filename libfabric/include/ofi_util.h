@@ -213,13 +213,17 @@ int ofi_domain_bind_eq(struct util_domain *domain, struct util_eq *eq);
 int ofi_domain_close(struct util_domain *domain);
 
 static const uint64_t ofi_rx_mr_flags[] = {
-	[ofi_op_msg] = FI_RECV,
-	[ofi_op_tagged] = FI_RECV,
-	[ofi_op_read_req] = FI_REMOTE_READ,
-	[ofi_op_write] = FI_REMOTE_WRITE,
-	[ofi_op_atomic] = FI_REMOTE_WRITE,
-	[ofi_op_atomic_fetch] = FI_REMOTE_WRITE | FI_REMOTE_READ,
-	[ofi_op_atomic_compare] = FI_REMOTE_WRITE | FI_REMOTE_READ,
+	/*[ofi_op_msg] = */ FI_RECV,
+	/*[ofi_op_tagged] = */ FI_RECV,
+	/*[ofi_op_read_req] = */ FI_REMOTE_READ,
+	/*[ofi_op_read_rsp] = */ 0,
+	/*[ofi_op_write] = */ FI_REMOTE_WRITE,
+	/*[ofi_op_write_async] = */ 0,
+	/*[ofi_op_atomic] = */ FI_REMOTE_WRITE,
+	/*[ofi_op_atomic_fetch] = */ FI_REMOTE_WRITE | FI_REMOTE_READ,
+	/*[ofi_op_atomic_compare] = */ FI_REMOTE_WRITE | FI_REMOTE_READ,
+	/*[ofi_op_read_async] = */ 0,
+	/*[ofi_op_max] = */ 0
 };
 
 static inline uint64_t ofi_rx_mr_reg_flags(uint32_t op, uint16_t atomic_op)

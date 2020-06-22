@@ -51,7 +51,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "sstmac_ep.h"
 
 
-DIRECT_FN STATIC extern "C" int sstmac_sep_bind(fid_t fid, struct fid *bfid, uint64_t flags);
+EXTERN_C DIRECT_FN STATIC  int sstmac_sep_bind(fid_t fid, struct fid *bfid, uint64_t flags);
 static int sstmac_sep_control(fid_t fid, int command, void *arg);
 static int sstmac_sep_close(fid_t fid);
 
@@ -570,7 +570,7 @@ err:
 	return ret;
 }
 
-DIRECT_FN STATIC extern "C" int sstmac_sep_bind(fid_t fid, struct fid *bfid, uint64_t flags)
+EXTERN_C DIRECT_FN STATIC  int sstmac_sep_bind(fid_t fid, struct fid *bfid, uint64_t flags)
 {
 	int i, ret, n_ids;
 #if 0

@@ -343,6 +343,10 @@ struct ofi_bufpool_hdr {
 int ofi_bufpool_create_attr(struct ofi_bufpool_attr *attr,
 			    struct ofi_bufpool **buf_pool);
 
+int no_bufpool_alloc(struct ofi_bufpool_region* reg);
+void no_bufpool_free(struct ofi_bufpool_region* reg);
+void no_bufpool_init(struct ofi_bufpool_region* reg, void* buf);
+
 static inline int
 ofi_bufpool_create(struct ofi_bufpool **buf_pool,
 		   size_t size, size_t alignment,
@@ -353,6 +357,10 @@ ofi_bufpool_create(struct ofi_bufpool **buf_pool,
 		.alignment 	= alignment,
 		.max_cnt	= max_cnt,
 		.chunk_cnt	= chunk_cnt,
+    .alloc_fn = no_bufpool_alloc,
+    .free_fn = no_bufpool_free,
+    .init_fn = no_bufpool_init,
+    .context = (void*)0x0,
 		.flags		= flags,
 	};
 	return ofi_bufpool_create_attr(&attr, buf_pool);

@@ -47,20 +47,20 @@ Questions? Contact sst-macro-help@sandia.gov
 
 #include "sstmac.h"
 
-DIRECT_FN STATIC extern "C" int sstmac_cntr_wait(struct fid_cntr *cntr, uint64_t threshold,
+EXTERN_C DIRECT_FN STATIC  int sstmac_cntr_wait(struct fid_cntr *cntr, uint64_t threshold,
 				    int timeout);
-DIRECT_FN STATIC extern "C" int sstmac_cntr_adderr(struct fid_cntr *cntr, uint64_t value);
-DIRECT_FN STATIC extern "C" int sstmac_cntr_seterr(struct fid_cntr *cntr, uint64_t value);
+EXTERN_C DIRECT_FN STATIC  int sstmac_cntr_adderr(struct fid_cntr *cntr, uint64_t value);
+EXTERN_C DIRECT_FN STATIC  int sstmac_cntr_seterr(struct fid_cntr *cntr, uint64_t value);
 DIRECT_FN STATIC uint64_t sstmac_cntr_readerr(struct fid_cntr *cntr);
-DIRECT_FN STATIC extern "C" int sstmac_cntr_seterr(struct fid_cntr *cntr, uint64_t value);
+EXTERN_C DIRECT_FN STATIC  int sstmac_cntr_seterr(struct fid_cntr *cntr, uint64_t value);
 DIRECT_FN STATIC uint64_t sstmac_cntr_read(struct fid_cntr *cntr);
-DIRECT_FN STATIC extern "C" int sstmac_cntr_add(struct fid_cntr *cntr, uint64_t value);
-DIRECT_FN extern "C" int sstmac_cntr_open(struct fid_domain *domain,
+EXTERN_C DIRECT_FN STATIC  int sstmac_cntr_add(struct fid_cntr *cntr, uint64_t value);
+extern "C" DIRECT_FN  int sstmac_cntr_open(struct fid_domain *domain,
 			     struct fi_cntr_attr *attr,
 			     struct fid_cntr **cntr, void *context);
 static int sstmac_cntr_control(struct fid *cntr, int command, void *arg);
 static int sstmac_cntr_close(fid_t fid);
-DIRECT_FN STATIC extern "C" int sstmac_cntr_set(struct fid_cntr *cntr, uint64_t value);
+EXTERN_C DIRECT_FN STATIC  int sstmac_cntr_set(struct fid_cntr *cntr, uint64_t value);
 
 static struct fi_ops sstmac_cntr_fi_ops = {
   .size = sizeof(struct fi_ops),
@@ -72,8 +72,8 @@ static struct fi_ops sstmac_cntr_fi_ops = {
 
 static struct fi_ops_cntr sstmac_cntr_ops = {
   .size = sizeof(struct fi_ops_cntr),
-  .readerr = sstmac_cntr_readerr,
   .read = sstmac_cntr_read,
+  .readerr = sstmac_cntr_readerr,
   .add = sstmac_cntr_add,
   .set = sstmac_cntr_set,
   .wait = sstmac_cntr_wait,
@@ -81,7 +81,7 @@ static struct fi_ops_cntr sstmac_cntr_ops = {
   .seterr = sstmac_cntr_seterr
 };
 
-DIRECT_FN STATIC extern "C" int sstmac_cntr_wait(struct fid_cntr *cntr, uint64_t threshold,
+EXTERN_C DIRECT_FN STATIC  int sstmac_cntr_wait(struct fid_cntr *cntr, uint64_t threshold,
 				    int timeout)
 {
 #if 0
@@ -100,7 +100,7 @@ DIRECT_FN STATIC extern "C" int sstmac_cntr_wait(struct fid_cntr *cntr, uint64_t
   return 0;
 }
 
-DIRECT_FN STATIC extern "C" int sstmac_cntr_adderr(struct fid_cntr *cntr, uint64_t value)
+EXTERN_C DIRECT_FN STATIC  int sstmac_cntr_adderr(struct fid_cntr *cntr, uint64_t value)
 {
 #if 0
   struct sstmac_fid_cntr *cntr_priv;
@@ -117,7 +117,7 @@ DIRECT_FN STATIC extern "C" int sstmac_cntr_adderr(struct fid_cntr *cntr, uint64
 	return FI_SUCCESS;
 }
 
-DIRECT_FN STATIC extern "C" int sstmac_cntr_seterr(struct fid_cntr *cntr, uint64_t value)
+EXTERN_C DIRECT_FN STATIC  int sstmac_cntr_seterr(struct fid_cntr *cntr, uint64_t value)
 {
 #if 0
   struct sstmac_fid_cntr *cntr_priv;
@@ -200,7 +200,7 @@ DIRECT_FN STATIC uint64_t sstmac_cntr_read(struct fid_cntr *cntr)
 	return (uint64_t)v;
 }
 
-DIRECT_FN STATIC extern "C" int sstmac_cntr_add(struct fid_cntr *cntr, uint64_t value)
+EXTERN_C DIRECT_FN STATIC  int sstmac_cntr_add(struct fid_cntr *cntr, uint64_t value)
 {
 #if 0
   struct sstmac_fid_cntr *cntr_priv;
@@ -219,7 +219,7 @@ DIRECT_FN STATIC extern "C" int sstmac_cntr_add(struct fid_cntr *cntr, uint64_t 
 	return FI_SUCCESS;
 }
 
-DIRECT_FN STATIC extern "C" int sstmac_cntr_set(struct fid_cntr *cntr, uint64_t value)
+EXTERN_C DIRECT_FN STATIC  int sstmac_cntr_set(struct fid_cntr *cntr, uint64_t value)
 {
 #if 0
   struct sstmac_fid_cntr *cntr_priv;
@@ -270,7 +270,7 @@ static int sstmac_cntr_control(struct fid *cntr, int command, void *arg)
 
 
 
-DIRECT_FN extern "C" int sstmac_cntr_open(struct fid_domain *domain,
+extern "C" DIRECT_FN  int sstmac_cntr_open(struct fid_domain *domain,
 			     struct fi_cntr_attr *attr,
 			     struct fid_cntr **cntr, void *context)
 {

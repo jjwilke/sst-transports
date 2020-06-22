@@ -134,8 +134,8 @@ Questions? Contact sst-macro-help@sandia.gov
 #define SSTMAC_DEFAULT_PROV_REGISTRATION_LIMIT 64
 #define SSTMAC_DEFAULT_SHARED_MEMORY_TIMEOUT 30
 
-extern "C" int sstmac_default_user_registration_limit = SSTMAC_DEFAULT_USER_REGISTRATION_LIMIT;
-extern "C" int sstmac_default_prov_registration_limit = SSTMAC_DEFAULT_PROV_REGISTRATION_LIMIT;
+int sstmac_default_user_registration_limit = SSTMAC_DEFAULT_USER_REGISTRATION_LIMIT;
+int sstmac_default_prov_registration_limit = SSTMAC_DEFAULT_PROV_REGISTRATION_LIMIT;
 uint32_t sstmac_wait_shared_memory_timeout = SSTMAC_DEFAULT_SHARED_MEMORY_TIMEOUT;
 
 /* assume that the user will open additional fabrics later and that
@@ -143,7 +143,7 @@ uint32_t sstmac_wait_shared_memory_timeout = SSTMAC_DEFAULT_SHARED_MEMORY_TIMEOU
    process. If the user sets this value, we can assume that they
    intend to be done with libfabric when the last fabric instance
    closes so that we can free the ptag information. */
-extern "C" int sstmac_dealloc_aki_on_fabric_close = 0;
+int sstmac_dealloc_aki_on_fabric_close = 0;
 
 #define SSTMAC_MAJOR_VERSION 1
 #define SSTMAC_MINOR_VERSION 0
@@ -155,7 +155,7 @@ const struct fi_fabric_attr sstmac_fabric_attr = {
 	.prov_version = FI_VERSION(SSTMAC_MAJOR_VERSION, SSTMAC_MINOR_VERSION),
 };
 
-DIRECT_FN extern "C" int sstmac_fabric_trywait(struct fid_fabric *fabric, struct fid **fids, int count)
+extern "C" DIRECT_FN  int sstmac_fabric_trywait(struct fid_fabric *fabric, struct fid **fids, int count)
 {
 	return -FI_ENOSYS;
 }
@@ -553,9 +553,9 @@ static int sstmac_getinfo(uint32_t version,
 }
 
 struct fi_provider sstmac_prov = {
-  .name = "sstmac",
 	.version = FI_VERSION(SSTMAC_MAJOR_VERSION, SSTMAC_MINOR_VERSION),
 	.fi_version = OFI_VERSION_LATEST,
+  .name = "sstmac",
 	.getinfo = sstmac_getinfo,
 	.fabric = sstmac_fabric_open,
 	.cleanup = sstmac_fini

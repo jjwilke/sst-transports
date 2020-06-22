@@ -89,7 +89,7 @@ Questions? Contact sst-macro-help@sandia.gov
 #include <sstmac_sumi.hpp>
 #include <sstmac/software/process/operating_system.h>
 
-DIRECT_FN STATIC extern "C" int sstmac_ep_control(fid_t fid, int command, void *arg);
+EXTERN_C DIRECT_FN STATIC  int sstmac_ep_control(fid_t fid, int command, void *arg);
 static int sstmac_ep_ops_open(struct fid *fid, const char *ops_name, uint64_t flags,
                               void **ops, void *context);
 
@@ -383,14 +383,13 @@ static ssize_t sstmaci_ep_send(struct fid_ep* ep, const void* buf, size_t len,
 
   uint32_t dest_rank = ADDR_RANK(dest_addr);
   uint16_t remote_cq = ADDR_CQ(dest_addr);
-  uint16_t recv_queue = ADDR_QUEUE(dest_addr);
+  //uint16_t recv_queue = ADDR_QUEUE(dest_addr);
 
   flags |= FI_SEND;
 
   tport->postSend<FabricMessage>(dest_rank, len, const_cast<void*>(buf),
                                  ep_impl->send_cq->id, // rma operations go to the tx
-                                 remote_cq, recv_queue,
-                                 sumi::Message::pt2pt, ep_impl->qos,
+                                 remote_cq, sumi::Message::pt2pt, ep_impl->qos,
                                  tag, FabricMessage::no_imm_data, flags, context);
   return 0;
 }
@@ -652,21 +651,21 @@ DIRECT_FN STATIC ssize_t sstmac_ep_tinjectdata(struct fid_ep *ep, const void *bu
   return -FI_ENOSYS;
 }
 
-DIRECT_FN extern "C" int sstmac_ep_atomic_valid(struct fid_ep *ep,
+extern "C" DIRECT_FN  int sstmac_ep_atomic_valid(struct fid_ep *ep,
 					  enum fi_datatype datatype,
 					  enum fi_op op, size_t *count)
 {
   return 0;
 }
 
-DIRECT_FN extern "C" int sstmac_ep_fetch_atomic_valid(struct fid_ep *ep,
+extern "C" DIRECT_FN  int sstmac_ep_fetch_atomic_valid(struct fid_ep *ep,
 						enum fi_datatype datatype,
 						enum fi_op op, size_t *count)
 {
   return 0;
 }
 
-DIRECT_FN extern "C" int sstmac_ep_cmp_atomic_valid(struct fid_ep *ep,
+extern "C" DIRECT_FN  int sstmac_ep_cmp_atomic_valid(struct fid_ep *ep,
 					      enum fi_datatype datatype,
 					      enum fi_op op, size_t *count)
 {
@@ -777,7 +776,7 @@ DIRECT_FN STATIC ssize_t sstmac_ep_atomic_compwritemsg(struct fid_ep *ep,
   return -FI_ENOSYS;
 }
 
-DIRECT_FN STATIC extern "C" int sstmac_ep_control(fid_t fid, int command, void *arg)
+EXTERN_C DIRECT_FN STATIC  int sstmac_ep_control(fid_t fid, int command, void *arg)
 {
   return -FI_ENOSYS;
 }
@@ -789,7 +788,7 @@ extern "C" int sstmac_ep_close(fid_t fid)
   return FI_SUCCESS;
 }
 
-DIRECT_FN extern "C" int sstmac_ep_bind(fid_t fid, struct fid *bfid, uint64_t flags)
+extern "C" DIRECT_FN  int sstmac_ep_bind(fid_t fid, struct fid *bfid, uint64_t flags)
 {
   //this can always be cast to an endpiont regardless of whether
   //it is a simple endpoint or tx/rx context
@@ -868,7 +867,7 @@ DIRECT_FN extern "C" int sstmac_ep_bind(fid_t fid, struct fid *bfid, uint64_t fl
 }
 
 
-DIRECT_FN extern "C" int sstmac_ep_open(struct fid_domain *domain, struct fi_info *info,
+extern "C" DIRECT_FN  int sstmac_ep_open(struct fid_domain *domain, struct fi_info *info,
 			   struct fid_ep **ep, void *context)
 {
   sstmac_fid_ep* ep_impl = (sstmac_fid_ep*) calloc(1, sizeof(sstmac_fid_ep));
@@ -921,7 +920,7 @@ sstmac_ep_ops_open(struct fid *fid, const char *ops_name, uint64_t flags,
   return -FI_EINVAL;
 }
 
-DIRECT_FN STATIC extern "C" int sstmac_ep_getopt(fid_t fid, int level, int optname,
+EXTERN_C DIRECT_FN STATIC  int sstmac_ep_getopt(fid_t fid, int level, int optname,
 				    void *optval, size_t *optlen)
 {
   return -FI_ENOSYS;
@@ -933,7 +932,7 @@ extern "C" int sstmac_getopt(fid_t fid, int level, int optname,
   return -FI_ENOSYS;
 }
 
-DIRECT_FN STATIC extern "C" int sstmac_ep_setopt(fid_t fid, int level, int optname,
+EXTERN_C DIRECT_FN STATIC  int sstmac_ep_setopt(fid_t fid, int level, int optname,
 				    const void *optval, size_t optlen)
 {
   return -FI_ENOPROTOOPT;
@@ -955,16 +954,14 @@ DIRECT_FN STATIC ssize_t sstmac_ep_tx_size_left(struct fid_ep *ep)
   return SSTMAC_TX_SIZE_DEFAULT;
 }
 
-__attribute__((unused))
-DIRECT_FN STATIC extern "C" int sstmac_tx_context(struct fid_ep *ep, int index,
+EXTERN_C DIRECT_FN STATIC  int sstmac_tx_context(struct fid_ep *ep, int index,
 				     struct fi_tx_attr *attr,
 				     struct fid_ep **tx_ep, void *context)
 {
   return -FI_ENOSYS;
 }
 
-__attribute__((unused))
-DIRECT_FN STATIC extern "C" int sstmac_rx_context(struct fid_ep *ep, int index,
+EXTERN_C DIRECT_FN STATIC  int sstmac_rx_context(struct fid_ep *ep, int index,
 				     struct fi_rx_attr *attr,
 				     struct fid_ep **rx_ep, void *context)
 {

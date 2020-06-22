@@ -41,6 +41,8 @@
 
 #include "linux/rdpmc.h"
 
+#if HAVE_LINUX_PERF_RDPMC
+
 typedef unsigned long long u64;
 
 #define rmb() asm volatile("" ::: "memory")
@@ -229,3 +231,5 @@ inline void ofi_pmu_close(struct ofi_perf_ctx *ctx)
 	rdpmc_close(&ctx->ctx);
 	free(ctx);
 }
+
+#endif

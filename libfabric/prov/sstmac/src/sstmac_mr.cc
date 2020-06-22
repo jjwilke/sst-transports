@@ -51,17 +51,17 @@ static int __sstmac_mr_refresh(struct sstmac_fid_mem_desc *desc,
 	uint64_t addr, uint64_t len);
 static int fi_sstmac_mr_close(fid_t fid);
 static int fi_sstmac_mr_control(struct fid *fid, int command, void *arg);
-DIRECT_FN extern "C" int sstmac_mr_reg(struct fid *fid, const void *buf, size_t len,
+extern "C" DIRECT_FN  int sstmac_mr_reg(struct fid *fid, const void *buf, size_t len,
 	uint64_t access, uint64_t offset,
 	uint64_t requested_key, uint64_t flags,
 	struct fid_mr **mr, void *context);
-DIRECT_FN extern "C" int sstmac_mr_regv(struct fid *fid, const struct iovec *iov,
+extern "C" DIRECT_FN  int sstmac_mr_regv(struct fid *fid, const struct iovec *iov,
 	size_t count, uint64_t access,
 	uint64_t offset, uint64_t requested_key,
 	uint64_t flags, struct fid_mr **mr, void *context);
-DIRECT_FN extern "C" int sstmac_mr_regattr(struct fid *fid, const struct fi_mr_attr *attr,
+extern "C" DIRECT_FN  int sstmac_mr_regattr(struct fid *fid, const struct fi_mr_attr *attr,
 	uint64_t flags, struct fid_mr **mr);
-DIRECT_FN extern "C" int sstmac_mr_bind(fid_t fid, struct fid *bfid, uint64_t flags);
+extern "C" DIRECT_FN  int sstmac_mr_bind(fid_t fid, struct fid *bfid, uint64_t flags);
 
 /* global declarations */
 /* memory registration operations */
@@ -73,7 +73,7 @@ static struct fi_ops fi_sstmac_mr_ops = {
 	.ops_open = fi_no_ops_open,
 };
 
-DIRECT_FN extern "C" int sstmac_mr_reg(struct fid *fid, const void *buf, size_t len,
+extern "C" DIRECT_FN  int sstmac_mr_reg(struct fid *fid, const void *buf, size_t len,
 	uint64_t access, uint64_t offset,
 	uint64_t requested_key, uint64_t flags,
 	struct fid_mr **mr, void *context)
@@ -88,7 +88,7 @@ DIRECT_FN extern "C" int sstmac_mr_reg(struct fid *fid, const void *buf, size_t 
   return FI_SUCCESS;
 }
 
-DIRECT_FN extern "C" int sstmac_mr_regv(struct fid *fid, const struct iovec *iov,
+extern "C" DIRECT_FN  int sstmac_mr_regv(struct fid *fid, const struct iovec *iov,
 	size_t count, uint64_t access,
 	uint64_t offset, uint64_t requested_key,
 	uint64_t flags, struct fid_mr **mr, void *context)
@@ -103,7 +103,7 @@ DIRECT_FN extern "C" int sstmac_mr_regv(struct fid *fid, const struct iovec *iov
   return FI_SUCCESS;
 }
 
-DIRECT_FN extern "C" int sstmac_mr_regattr(struct fid *fid, const struct fi_mr_attr *attr,
+extern "C" DIRECT_FN  int sstmac_mr_regattr(struct fid *fid, const struct fi_mr_attr *attr,
 	uint64_t flags, struct fid_mr **mr)
 {
   fid_mr* mr_impl = (fid_mr*) calloc(1, sizeof(fid_mr));
@@ -127,7 +127,7 @@ static int fi_sstmac_mr_close(fid_t fid)
   return FI_SUCCESS;
 }
 
-DIRECT_FN extern "C" int sstmac_mr_bind(fid_t fid, struct fid *bfid, uint64_t flags)
+extern "C" DIRECT_FN  int sstmac_mr_bind(fid_t fid, struct fid *bfid, uint64_t flags)
 {
 	return -FI_ENOSYS;
 }

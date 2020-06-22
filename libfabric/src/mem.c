@@ -50,6 +50,9 @@ static const int OFI_CACHE_SIZE = 64;
 size_t *page_sizes = NULL;
 size_t num_page_sizes = 0;
 
+int no_bufpool_alloc(struct ofi_bufpool_region* reg){ return 0; }
+void no_bufpool_free(struct ofi_bufpool_region* reg){ }
+void no_bufpool_init(struct ofi_bufpool_region* reg, void* buf){ }
 
 void ofi_mem_init(void)
 {
