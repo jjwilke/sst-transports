@@ -383,14 +383,13 @@ static ssize_t sstmaci_ep_send(struct fid_ep* ep, const void* buf, size_t len,
 
   uint32_t dest_rank = ADDR_RANK(dest_addr);
   uint16_t remote_cq = ADDR_CQ(dest_addr);
-  uint16_t recv_queue = ADDR_QUEUE(dest_addr);
+  //uint16_t recv_queue = ADDR_QUEUE(dest_addr);
 
   flags |= FI_SEND;
 
   tport->postSend<FabricMessage>(dest_rank, len, const_cast<void*>(buf),
                                  ep_impl->send_cq->id, // rma operations go to the tx
-                                 remote_cq, recv_queue,
-                                 sumi::Message::pt2pt, ep_impl->qos,
+                                 remote_cq, sumi::Message::pt2pt, ep_impl->qos,
                                  tag, FabricMessage::no_imm_data, flags, context);
   return 0;
 }
