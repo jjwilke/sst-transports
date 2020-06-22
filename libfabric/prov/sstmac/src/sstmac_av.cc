@@ -88,23 +88,23 @@ Questions? Contact sst-macro-help@sandia.gov
 #include "sstmac.h"
 #include "sstmac_av.h"
 
-DIRECT_FN STATIC extern "C" int sstmac_av_insert(struct fid_av *av, const void *addr,
+EXTERN_C DIRECT_FN STATIC  int sstmac_av_insert(struct fid_av *av, const void *addr,
 				    size_t count, fi_addr_t *fi_addr,
             uint64_t flags, void *context);
 
-DIRECT_FN STATIC extern "C" int sstmac_av_insertsvc(struct fid_av *av, const char *node,
+EXTERN_C DIRECT_FN STATIC  int sstmac_av_insertsvc(struct fid_av *av, const char *node,
 				       const char *service, fi_addr_t *fi_addr,
 				       uint64_t flags, void *context);
 
-DIRECT_FN STATIC extern "C" int sstmac_av_insertsym(struct fid_av *av, const char *node,
+EXTERN_C DIRECT_FN STATIC  int sstmac_av_insertsym(struct fid_av *av, const char *node,
 				       size_t nodecnt, const char *service,
 				       size_t svccnt, fi_addr_t *fi_addr,
 				       uint64_t flags, void *context);
 
-DIRECT_FN STATIC extern "C" int sstmac_av_remove(struct fid_av *av, fi_addr_t *fi_addr,
+EXTERN_C DIRECT_FN STATIC  int sstmac_av_remove(struct fid_av *av, fi_addr_t *fi_addr,
 				    size_t count, uint64_t flags);
 
-DIRECT_FN STATIC extern "C" int sstmac_av_lookup(struct fid_av *av, fi_addr_t fi_addr,
+EXTERN_C DIRECT_FN STATIC  int sstmac_av_lookup(struct fid_av *av, fi_addr_t fi_addr,
 				    void *addr, size_t *addrlen);
 
 DIRECT_FN const char *sstmac_av_straddr(struct fid_av *av,
@@ -143,7 +143,7 @@ static struct fi_ops sstmac_fi_av_ops = {
  * typically be used in the critical path for messaging/rma/amo
  * requests
  */
-DIRECT_FN STATIC extern "C" int sstmac_av_lookup(struct fid_av *av, fi_addr_t fi_addr,
+EXTERN_C DIRECT_FN STATIC  int sstmac_av_lookup(struct fid_av *av, fi_addr_t fi_addr,
 				    void *addr, size_t *addrlen)
 {
   sstmac_fid_av* av_impl = (sstmac_fid_av*) av;
@@ -166,7 +166,7 @@ DIRECT_FN STATIC extern "C" int sstmac_av_lookup(struct fid_av *av, fi_addr_t fi
   return FI_SUCCESS;
 }
 
-DIRECT_FN STATIC extern "C" int sstmac_av_insert(struct fid_av *av, const void *addr,
+EXTERN_C DIRECT_FN STATIC  int sstmac_av_insert(struct fid_av *av, const void *addr,
 				    size_t count, fi_addr_t *fi_addr,
 				    uint64_t flags, void *context)
 {
@@ -189,14 +189,14 @@ DIRECT_FN STATIC extern "C" int sstmac_av_insert(struct fid_av *av, const void *
   return FI_SUCCESS;
 }
 
-DIRECT_FN STATIC extern "C" int sstmac_av_insertsvc(struct fid_av *av, const char *node,
+EXTERN_C DIRECT_FN STATIC  int sstmac_av_insertsvc(struct fid_av *av, const char *node,
 				       const char *service, fi_addr_t *fi_addr,
 				       uint64_t flags, void *context)
 {
 	return -FI_ENOSYS;
 }
 
-DIRECT_FN STATIC extern "C" int sstmac_av_insertsym(struct fid_av *av, const char *node,
+EXTERN_C DIRECT_FN STATIC  int sstmac_av_insertsym(struct fid_av *av, const char *node,
 				       size_t nodecnt, const char *service,
 				       size_t svccnt, fi_addr_t *fi_addr,
 				       uint64_t flags, void *context)
@@ -204,7 +204,7 @@ DIRECT_FN STATIC extern "C" int sstmac_av_insertsym(struct fid_av *av, const cha
 	return -FI_ENOSYS;
 }
 
-DIRECT_FN STATIC extern "C" int sstmac_av_remove(struct fid_av *av, fi_addr_t *fi_addr,
+EXTERN_C DIRECT_FN STATIC  int sstmac_av_remove(struct fid_av *av, fi_addr_t *fi_addr,
 				    size_t count, uint64_t flags)
 {
   //we don't need to do anything to remove stuff

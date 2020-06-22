@@ -105,9 +105,9 @@ DIRECT_FN STATIC const char *sstmac_eq_strerror(struct fid_eq *eq, int prov_errn
                 const void *err_data, char *buf,
                 size_t len);
 
-DIRECT_FN STATIC extern "C" int sstmac_eq_close(struct fid *fid);
+EXTERN_C DIRECT_FN STATIC  int sstmac_eq_close(struct fid *fid);
 
-DIRECT_FN STATIC extern "C" int sstmac_eq_control(struct fid *eq, int command, void *arg);
+EXTERN_C DIRECT_FN STATIC  int sstmac_eq_control(struct fid *eq, int command, void *arg);
 
 static struct fi_ops_eq sstmac_eq_ops = {
   .size = sizeof(struct fi_ops_eq),
@@ -183,7 +183,7 @@ extern "C" DIRECT_FN  int sstmac_eq_open(struct fid_fabric *fabric, struct fi_eq
   return FI_SUCCESS;
 }
 
-DIRECT_FN STATIC extern "C" int sstmac_eq_close(struct fid *fid)
+EXTERN_C DIRECT_FN STATIC  int sstmac_eq_close(struct fid *fid)
 {
 #if 0
 	struct sstmac_fid_eq *eq;
@@ -220,7 +220,7 @@ DIRECT_FN STATIC ssize_t sstmac_eq_sread(struct fid_eq *eq, uint32_t *event,
   return 0;
 }
 
-DIRECT_FN STATIC extern "C" int sstmac_eq_control(struct fid *eq, int command, void *arg)
+EXTERN_C DIRECT_FN STATIC  int sstmac_eq_control(struct fid *eq, int command, void *arg)
 {
   switch (command) {
   case FI_GETWAIT:

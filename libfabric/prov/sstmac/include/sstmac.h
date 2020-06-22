@@ -523,9 +523,11 @@ void _sstmac_init(void);
 #ifdef FABRIC_DIRECT_ENABLED
 #define DIRECT_FN __attribute__((visibility ("default")))
 #define STATIC
+#define EXTERN_C extern "C"
 #else
 #define DIRECT_FN
 #define STATIC static
+#define EXTERN_C
 #endif
 
 #ifdef __cplusplus

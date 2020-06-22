@@ -52,22 +52,22 @@ Questions? Contact sst-macro-help@sandia.gov
 
 #include <sprockit/errors.h>
 
-DIRECT_FN STATIC extern "C" int sstmac_setname(fid_t fid, void *addr, size_t addrlen);
-DIRECT_FN STATIC extern "C" int sstmac_getname(fid_t fid, void *addr, size_t *addrlen);
-DIRECT_FN STATIC extern "C" int sstmac_getpeer(struct fid_ep *ep, void *addr, size_t *addrlen);
-DIRECT_FN STATIC extern "C" int sstmac_connect(struct fid_ep *ep, const void *addr,
+EXTERN_C DIRECT_FN STATIC  int sstmac_setname(fid_t fid, void *addr, size_t addrlen);
+EXTERN_C DIRECT_FN STATIC  int sstmac_getname(fid_t fid, void *addr, size_t *addrlen);
+EXTERN_C DIRECT_FN STATIC  int sstmac_getpeer(struct fid_ep *ep, void *addr, size_t *addrlen);
+EXTERN_C DIRECT_FN STATIC  int sstmac_connect(struct fid_ep *ep, const void *addr,
 				  const void *param, size_t paramlen);
-DIRECT_FN STATIC extern "C" int sstmac_accept(struct fid_ep *ep, const void *param,
+EXTERN_C DIRECT_FN STATIC  int sstmac_accept(struct fid_ep *ep, const void *param,
 				 size_t paramlen);
 extern "C" DIRECT_FN  int sstmac_pep_open(struct fid_fabric *fabric,
 			    struct fi_info *info, struct fid_pep **pep,
 			    void *context);
 extern "C" DIRECT_FN  int sstmac_pep_bind(struct fid *fid, struct fid *bfid, uint64_t flags);
-DIRECT_FN STATIC extern "C" int sstmac_reject(struct fid_pep *pep, fid_t handle,
+EXTERN_C DIRECT_FN STATIC  int sstmac_reject(struct fid_pep *pep, fid_t handle,
 				 const void *param, size_t paramlen);
 DIRECT_FN STATIC int sstmac_shutdown(struct fid_ep *ep, uint64_t flags);
 extern "C" DIRECT_FN  int sstmac_pep_listen(struct fid_pep *pep);
-DIRECT_FN STATIC extern "C" int sstmac_pep_getopt(fid_t fid, int level, int optname,
+EXTERN_C DIRECT_FN STATIC  int sstmac_pep_getopt(fid_t fid, int level, int optname,
              void *optval, size_t *optlen);
 static int sstmac_pep_close(fid_t fid);
 
@@ -129,7 +129,7 @@ struct fi_ops_cm sstmac_pep_ops_cm = {
   .join = fi_no_join,
 };
 
-DIRECT_FN STATIC extern "C" int sstmac_getname(fid_t fid, void *addr, size_t *addrlen)
+EXTERN_C DIRECT_FN STATIC  int sstmac_getname(fid_t fid, void *addr, size_t *addrlen)
 {
   sstmac_fid_ep* ep = (sstmac_fid_ep*) fid;
   if (ep->domain->addr_format == FI_ADDR_STR){
@@ -211,7 +211,7 @@ DIRECT_FN STATIC extern "C" int sstmac_getname(fid_t fid, void *addr, size_t *ad
 	return (len == cpylen) ? FI_SUCCESS : -FI_ETOOSMALL;
 }
 
-DIRECT_FN STATIC extern "C" int sstmac_setname(fid_t fid, void *addr, size_t addrlen)
+EXTERN_C DIRECT_FN STATIC  int sstmac_setname(fid_t fid, void *addr, size_t addrlen)
 {
 	int ret;
 #if 0
@@ -277,7 +277,7 @@ DIRECT_FN STATIC extern "C" int sstmac_setname(fid_t fid, void *addr, size_t add
 	return FI_SUCCESS;
 }
 
-DIRECT_FN STATIC extern "C" int sstmac_getpeer(struct fid_ep *ep, void *addr,
+EXTERN_C DIRECT_FN STATIC  int sstmac_getpeer(struct fid_ep *ep, void *addr,
 				  size_t *addrlen)
 {
 	int ret;
@@ -332,7 +332,7 @@ DIRECT_FN STATIC extern "C" int sstmac_getpeer(struct fid_ep *ep, void *addr,
 	return (len == cpylen) ? FI_SUCCESS : -FI_ETOOSMALL;
 }
 
-DIRECT_FN STATIC extern "C" int sstmac_connect(struct fid_ep *ep, const void *addr,
+EXTERN_C DIRECT_FN STATIC  int sstmac_connect(struct fid_ep *ep, const void *addr,
 				  const void *param, size_t paramlen)
 {
 	int ret, errno_keep;
@@ -486,7 +486,7 @@ err_unlock:
 	return ret;
 }
 
-DIRECT_FN STATIC extern "C" int sstmac_accept(struct fid_ep *ep, const void *param,
+EXTERN_C DIRECT_FN STATIC  int sstmac_accept(struct fid_ep *ep, const void *param,
 				 size_t paramlen)
 {
 	int ret, errno_keep;
@@ -653,7 +653,7 @@ DIRECT_FN STATIC int sstmac_shutdown(struct fid_ep *ep, uint64_t flags)
  *
  *****************************************************************************/
 
-DIRECT_FN STATIC extern "C" int sstmac_pep_getopt(fid_t fid, int level, int optname,
+EXTERN_C DIRECT_FN STATIC  int sstmac_pep_getopt(fid_t fid, int level, int optname,
 				     void *optval, size_t *optlen)
 {
 #if 0
@@ -827,12 +827,12 @@ err_unlock:
 }
 
 __attribute__((unused))
-DIRECT_FN STATIC extern "C" int sstmac_listen(struct fid_pep *pep)
+EXTERN_C DIRECT_FN STATIC  int sstmac_listen(struct fid_pep *pep)
 {
         return -FI_ENOSYS;
 }
 
-DIRECT_FN STATIC extern "C" int sstmac_reject(struct fid_pep *pep, fid_t handle,
+EXTERN_C DIRECT_FN STATIC  int sstmac_reject(struct fid_pep *pep, fid_t handle,
 				 const void *param, size_t paramlen)
 {
 #if 0

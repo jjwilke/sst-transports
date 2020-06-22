@@ -89,7 +89,7 @@ Questions? Contact sst-macro-help@sandia.gov
 #include <sstmac_sumi.hpp>
 #include <sstmac/software/process/operating_system.h>
 
-DIRECT_FN STATIC extern "C" int sstmac_ep_control(fid_t fid, int command, void *arg);
+EXTERN_C DIRECT_FN STATIC  int sstmac_ep_control(fid_t fid, int command, void *arg);
 static int sstmac_ep_ops_open(struct fid *fid, const char *ops_name, uint64_t flags,
                               void **ops, void *context);
 
@@ -776,7 +776,7 @@ DIRECT_FN STATIC ssize_t sstmac_ep_atomic_compwritemsg(struct fid_ep *ep,
   return -FI_ENOSYS;
 }
 
-DIRECT_FN STATIC extern "C" int sstmac_ep_control(fid_t fid, int command, void *arg)
+EXTERN_C DIRECT_FN STATIC  int sstmac_ep_control(fid_t fid, int command, void *arg)
 {
   return -FI_ENOSYS;
 }
@@ -920,7 +920,7 @@ sstmac_ep_ops_open(struct fid *fid, const char *ops_name, uint64_t flags,
   return -FI_EINVAL;
 }
 
-DIRECT_FN STATIC extern "C" int sstmac_ep_getopt(fid_t fid, int level, int optname,
+EXTERN_C DIRECT_FN STATIC  int sstmac_ep_getopt(fid_t fid, int level, int optname,
 				    void *optval, size_t *optlen)
 {
   return -FI_ENOSYS;
@@ -932,7 +932,7 @@ extern "C" int sstmac_getopt(fid_t fid, int level, int optname,
   return -FI_ENOSYS;
 }
 
-DIRECT_FN STATIC extern "C" int sstmac_ep_setopt(fid_t fid, int level, int optname,
+EXTERN_C DIRECT_FN STATIC  int sstmac_ep_setopt(fid_t fid, int level, int optname,
 				    const void *optval, size_t optlen)
 {
   return -FI_ENOPROTOOPT;
@@ -955,7 +955,7 @@ DIRECT_FN STATIC ssize_t sstmac_ep_tx_size_left(struct fid_ep *ep)
 }
 
 __attribute__((unused))
-DIRECT_FN STATIC extern "C" int sstmac_tx_context(struct fid_ep *ep, int index,
+EXTERN_C DIRECT_FN STATIC  int sstmac_tx_context(struct fid_ep *ep, int index,
 				     struct fi_tx_attr *attr,
 				     struct fid_ep **tx_ep, void *context)
 {
@@ -963,7 +963,7 @@ DIRECT_FN STATIC extern "C" int sstmac_tx_context(struct fid_ep *ep, int index,
 }
 
 __attribute__((unused))
-DIRECT_FN STATIC extern "C" int sstmac_rx_context(struct fid_ep *ep, int index,
+EXTERN_C DIRECT_FN STATIC  int sstmac_rx_context(struct fid_ep *ep, int index,
 				     struct fi_rx_attr *attr,
 				     struct fid_ep **rx_ep, void *context)
 {

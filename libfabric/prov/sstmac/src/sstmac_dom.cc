@@ -59,7 +59,7 @@ static int
 sstmac_domain_ops_open(struct fid *fid, const char *ops_name, uint64_t flags,
 		     void **ops, void *context);
 
-DIRECT_FN STATIC extern "C" int sstmac_stx_open(struct fid_domain *dom,
+EXTERN_C DIRECT_FN STATIC  int sstmac_stx_open(struct fid_domain *dom,
 				   struct fi_tx_attr *tx_attr,
 				   struct fid_stx **stx, void *context);
 extern "C" DIRECT_FN  int sstmac_domain_bind(struct fid_domain *domain, struct fid *fid,
@@ -197,7 +197,7 @@ static int sstmac_stx_close(fid_t fid)
   return FI_SUCCESS;
 }
 
-DIRECT_FN STATIC extern "C" int sstmac_stx_open(struct fid_domain *dom,
+EXTERN_C DIRECT_FN STATIC  int sstmac_stx_open(struct fid_domain *dom,
 				   struct fi_tx_attr *tx_attr,
 				   struct fid_stx **stx, void *context)
 {
