@@ -1,7 +1,8 @@
-add_sstmac_library(ibverbs 
+add_library(ibverbs SHARED
   libibverbs.cc
   librdmacm.cc
 )
+target_link_libraries(ibverbs PRIVATE SST::SSTMacro)
 target_include_directories(ibverbs PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 include(GNUInstallDirs)

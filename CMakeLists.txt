@@ -5,3 +5,4 @@ find_package(SSTMacro REQUIRED)
 
 add_subdirectory(ibverbs)
 add_subdirectory(ugni)
+add_subdirectory(libfabric)

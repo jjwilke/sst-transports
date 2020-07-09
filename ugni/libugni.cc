@@ -19,7 +19,8 @@ class GNIMessage : public sumi::Message {
  public:
   void* data() const {
     switch(NetworkMessage::type()){
-      case payload:
+      case smsg_send:
+      case posted_send:
       case rdma_get_payload:
         return NetworkMessage::localBuffer();
       case rdma_put_payload:
@@ -1011,7 +1012,7 @@ extern "C" gni_return_t GNI_SmsgSendWTag(
 static GNISmsgMessage* poll_for_next_smsg(UGNITransport* api, int cq_id){
   double timeout = 10e-3; //block for at least 10 ms
   sumi::Message* msg = api->poll(true, cq_id, timeout);
-  if (msg->NetworkMessage::type() == NetworkMessage::payload){
+  if (msg->NetworkMessage::type() == NetworkMessage::smsg_send){
     return dynamic_cast<GNISmsgMessage*>(msg);
   } else {
     return nullptr;
