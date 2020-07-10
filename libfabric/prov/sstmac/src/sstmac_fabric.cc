@@ -317,6 +317,77 @@ static struct fi_info *sstmac_allocinfo(void)
   return sstmac_info;
 }
 
+static int sstmaci_resolve_node(const char *node, const char *service,
+               uint64_t flags, const struct fi_info *hints,
+               struct fi_info *info)
+{
+  bool is_fi_addr_str;
+  if (hints && hints->addr_format == FI_ADDR_STR) {
+    is_fi_addr_str = true;
+  }
+
+  if (is_fi_addr_str && node && service) {
+    warn_einval("cannot give FI_ADDR_STR with node and service parameters");
+    return -FI_EINVAL;
+  }
+
+  info->src_addr = malloc(sizeof(fi_addr_t));
+  info->dest_addr = malloc(sizeof(fi_addr_t));
+  ErrorDeallocate src(info->src_addr, [](void* ptr){
+    free(ptr);
+  });
+  ErrorDeallocate dest(info->src_addr, [](void* ptr){
+    free(ptr);
+  });
+
+  FabricTransport* tport = sstmac_fabric();
+  if (flags & FI_SOURCE) {
+    warn_einval("do not yet support FI_SOURCE");
+    return -FI_EINVAL;
+  } else {
+    if (node || service){
+      if (is_fi_addr_str){
+        fi_addr_t addr = sstmaci_str_to_fi_addr(node);
+        if (addr == std::numeric_limits<fi_addr_t>::max()){
+          warn_einval("got invalid FI_ADDR_STR %s", (const char*) node);
+          return -FI_EINVAL;
+        }
+        if (addr != tport->rank()){
+          warn_einval("sstmac provider requires input node to match transport rank");
+          return -FI_EINVAL;
+        }
+      } else {
+        //at this point I would make a call to getaddrinfo to figure things out
+        //but I don't support that yet
+        warn_einval("do not yet support node/service inputs and calls to getaddrinfo");
+        return -FI_EINVAL;
+      }
+    } else {
+      if (hints && hints->dest_addr){
+        if (tport->rank() != *((fi_addr_t*)hints->dest_addr)){
+          warn_einval("sstmac provider requires hints dest_addr to match transport rank");
+          return -FI_EINVAL;
+        }
+        *((fi_addr_t*)info->src_addr) = tport->rank();
+      } else {
+        // leave uninitialized
+      }
+
+      if (hints && hints->src_addr){
+        if (tport->rank() != *((fi_addr_t*)hints->src_addr)){
+          warn_einval("sstmac provider requires hints src_addr to match transport rank");
+          return -FI_EINVAL;
+        }
+      }
+      *((fi_addr_t*)info->src_addr) = tport->rank();
+      return FI_SUCCESS;
+    }
+  }
+  src.success();
+  dest.success();
+  return FI_SUCCESS;
+}
+
 static int sstmac_ep_getinfo(enum fi_ep_type ep_type, uint32_t version,
       const char *node, const char *service,
       uint64_t flags, const struct fi_info *hints,
@@ -514,6 +585,8 @@ static int sstmac_ep_getinfo(enum fi_ep_type ep_type, uint32_t version,
   info->tx_attr->mode = info->mode;
   info->rx_attr->caps = info->caps;
   info->rx_attr->mode = info->mode;
+
+  sstmaci_resolve_node(node, service, flags, hints, info);
 
   *info_ptr = info;
 

@@ -134,10 +134,6 @@ static struct fi_ops sstmac_fi_av_ops = {
   .ops_open = fi_no_ops_open
 };
 
-#define SSTMAC_MAX_ADDR_CHARS 7
-#define SSTMAC_ADDR_FORMAT_STR "%7" PRIu64
-#define SSTMAC_MAX_ADDR_LEN SSTMAC_MAX_ADDR_CHARS+1
-
 /*
  * Note: this function (according to WG), is not intended to
  * typically be used in the critical path for messaging/rma/amo
@@ -149,19 +145,24 @@ EXTERN_C DIRECT_FN STATIC  int sstmac_av_lookup(struct fid_av *av, fi_addr_t fi_
   sstmac_fid_av* av_impl = (sstmac_fid_av*) av;
   if (av_impl->domain->addr_format == FI_ADDR_SSTMAC){
     if (*addrlen < sizeof(uint64_t)){
+      warn_einval("addrlen given (%zu) is too short to hold addrlen 8",
+                  *addrlen);
       return -FI_EINVAL;
     }
     uint64_t* addr_int = (uint64_t*) addr;
     *addr_int = fi_addr;
   } else if (av_impl->domain->addr_format == FI_ADDR_STR){
     if (*addrlen < SSTMAC_MAX_ADDR_LEN){
+      warn_einval("addrlen given (%zu) is too short to hold addrlen %d",
+                  *addrlen, SSTMAC_MAX_ADDR_LEN);
       return -FI_EINVAL;
     }
     //all addresses are just strings of the rank
     snprintf((char*)addr, SSTMAC_MAX_ADDR_LEN, SSTMAC_ADDR_FORMAT_STR, fi_addr);
     *addrlen = SSTMAC_MAX_ADDR_LEN;
   } else {
-    spkt_abort_printf("internal error: got addr format that isn't SSTMAC or STR");
+    warn_einval("got addr format that isn't SSTMAC or STR");
+    return -FI_EINVAL;
   }
   return FI_SUCCESS;
 }
@@ -184,7 +185,8 @@ EXTERN_C DIRECT_FN STATIC  int sstmac_av_insert(struct fid_av *av, const void *a
       fi_addr[i] = addr_list[i];
     }
   } else {
-    spkt_abort_printf("internal error: got addr format that isn't SSTMAC or STR");
+    warn_einval("got addr format that isn't SSTMAC or STR");
+    return -FI_EINVAL;
   }
   return FI_SUCCESS;
 }
@@ -224,11 +226,10 @@ DIRECT_FN const char *sstmac_av_straddr(struct fid_av *av,
     uint64_t* addr_ptr = (uint64_t*) addr;
     uint32_t rank = ADDR_RANK(*addr_ptr);
     uint16_t cq = ADDR_CQ(*addr_ptr);
-    uint16_t rx = ADDR_QUEUE(*addr_ptr);
-    sprintf(ret, "%" PRIu32 ".%" PRIu16 ".%" PRIu16,
-            rank, cq, rx);
+    sprintf(ret, "%" PRIu32 ".%" PRIu16, rank, cq);
   } else {
-    spkt_abort_printf("internal error: got addr format that isn't SSTMAC or STR");
+    warn_einval("got addr format that isn't SSTMAC or STR");
+    ret[0] = '\0';
   }
   *len = ::strlen(ret);
   return ret;

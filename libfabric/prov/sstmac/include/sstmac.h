@@ -355,6 +355,8 @@ struct sstmac_fid_ep {
 	uint64_t op_flags;
 	uint64_t caps;
   uint16_t rx_id;
+  fi_addr_t src_addr;
+  fi_addr_t dest_addr;
 	struct sstmac_fid_cq *send_cq;
 	struct sstmac_fid_cq *recv_cq;
 	struct sstmac_fid_cntr *send_cntr;
@@ -463,16 +465,29 @@ struct sstmac_fid_srx {
   sstmac_fid_domain* domain;
 };
 
-#define ADDR_CQ(addr)    ((addr >> 16) | 0xFFFF)
-#define ADDR_RANK(addr)  ((addr >> 32) | 0xFFFFFFFF)
-#define ADDR_QUEUE(addr) (addr | 0xFFFF)
-#define ADDR_RANK_BITS(rank)    (rank << 32)
-#define ADDR_QUEUE_BITS(queue)  (queue)
-#define ADDR_CQ_BITS(cq)        (cq << 16)
+#define ADDR_CQ(addr)    ((addr) | 0xFFFF)
+#define ADDR_RANK(addr)  (((addr) >> 32) | 0xFFFFFFFF)
+#define ADDR_RANK_BITS(rank)    ((rank) << 32)
+#define ADDR_CQ_BITS(cq)        (cq)
+
+#define SSTMAC_MAX_ADDR_CHARS 7
+#define SSTMAC_ADDR_FORMAT_STR "%7" PRIu64
+#define SSTMAC_MAX_ADDR_LEN SSTMAC_MAX_ADDR_CHARS+1
 
 extern const char sstmac_fab_name[];
 extern const char sstmac_dom_name[];
 
+#define warn_einval(...) \
+  fprintf(stderr, "EINVAL: " __VA_ARGS__); \
+  fprintf(stderr, "  %s:%d\n", __FILE__, __LINE__)
+
+
+/**
+ * @brief str_to_fi_addr
+ * @param str a string of the node address
+ * @return limits<fi_addr_t>::max() on failure, otherwise the value
+ */
+fi_addr_t sstmaci_str_to_fi_addr(const char* str);
 
 /*
  * prototypes for fi ops methods

@@ -383,7 +383,6 @@ static ssize_t sstmaci_ep_send(struct fid_ep* ep, const void* buf, size_t len,
 
   uint32_t dest_rank = ADDR_RANK(dest_addr);
   uint16_t remote_cq = ADDR_CQ(dest_addr);
-  //uint16_t recv_queue = ADDR_QUEUE(dest_addr);
 
   flags |= FI_SEND;
 
@@ -968,3 +967,11 @@ EXTERN_C DIRECT_FN STATIC  int sstmac_rx_context(struct fid_ep *ep, int index,
 	return -FI_ENOSYS;
 }
 
+fi_addr_t sstmaci_str_to_fi_addr(const char *str)
+{
+  try {
+    return std::strtoll((const char*) str, nullptr, 10);
+  } catch (std::invalid_argument& ia){
+    return std::numeric_limits<fi_addr_t>::max();
+  }
+}
