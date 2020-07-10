@@ -1,18 +1,18 @@
 /**
-Copyright 2009-2020 National Technology and Engineering Solutions of Sandia, 
-LLC (NTESS).  Under the terms of Contract DE-NA-0003525, the U.S.  Government 
+Copyright 2009-2020 National Technology and Engineering Solutions of Sandia,
+LLC (NTESS).  Under the terms of Contract DE-NA-0003525, the U.S.  Government
 retains certain rights in this software.
 
 Sandia National Laboratories is a multimission laboratory managed and operated
-by National Technology and Engineering Solutions of Sandia, LLC., a wholly 
-owned subsidiary of Honeywell International, Inc., for the U.S. Department of 
+by National Technology and Engineering Solutions of Sandia, LLC., a wholly
+owned subsidiary of Honeywell International, Inc., for the U.S. Department of
 Energy's National Nuclear Security Administration under contract DE-NA0003525.
 
 Copyright (c) 2009-2020, NTESS
 
 All rights reserved.
 
-Redistribution and use in source and binary forms, with or without modification, 
+Redistribution and use in source and binary forms, with or without modification,
 are permitted provided that the following conditions are met:
 
     * Redistributions of source code must retain the above copyright
@@ -41,44 +41,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 Questions? Contact sst-macro-help@sandia.gov
 */
-/*
- * Copyright (c) 2015-2019 Cray Inc. All rights reserved.
- * Copyright (c) 2015-2018 Los Alamos National Security, LLC.
- *                         All rights reserved.
- * Copyright (c) 2019 Triad National Security, LLC. All rights reserved.
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * BSD license below:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer.
- *
- *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials
- *        provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
 
-/*
- * Endpoint common code
- */
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
@@ -381,8 +344,8 @@ static ssize_t sstmaci_ep_send(struct fid_ep* ep, const void* buf, size_t len,
   sstmac_fid_ep* ep_impl = (sstmac_fid_ep*) ep;
   FabricTransport* tport = (FabricTransport*) ep_impl->domain->fabric->tport;
 
-  uint32_t dest_rank = ADDR_RANK(dest_addr);
-  uint16_t remote_cq = ADDR_CQ(dest_addr);
+  uint32_t dest_rank = SSTMAC_ADDR_RANK(dest_addr);
+  uint16_t remote_cq = SSTMAC_ADDR_CQ(dest_addr);
 
   flags |= FI_SEND;
 
@@ -450,12 +413,12 @@ static ssize_t sstmaci_ep_read(struct fid_ep *ep, void *buf, size_t len,
   sstmac_fid_ep* ep_impl = (sstmac_fid_ep*) ep;
   FabricTransport* tport = (FabricTransport*) ep_impl->domain->fabric->tport;
 
-  uint32_t src_rank = ADDR_RANK(src_addr);
+  uint32_t src_rank = SSTMAC_ADDR_RANK(src_addr);
 
   uint64_t flags = 0;
   int remote_cq = sumi::Message::no_ack;
   if (ep_impl->op_flags & FI_REMOTE_READ){
-    remote_cq = ADDR_CQ(src_addr);
+    remote_cq = SSTMAC_ADDR_CQ(src_addr);
     flags |= FI_REMOTE_READ;
   }
   flags |= FI_READ;
@@ -502,12 +465,12 @@ static ssize_t sstmaci_ep_write(struct fid_ep *ep, const void *buf, size_t len,
 
   int remote_cq = sumi::Message::no_ack;
   if (ep_impl->op_flags & FI_REMOTE_WRITE){
-    remote_cq = ADDR_CQ(dest_addr);
+    remote_cq = SSTMAC_ADDR_CQ(dest_addr);
     flags |= FI_REMOTE_WRITE;
   }
   flags |= FI_WRITE;
 
-  uint32_t src_rank = ADDR_RANK(dest_addr);
+  uint32_t src_rank = SSTMAC_ADDR_RANK(dest_addr);
   tport->rdmaPut<FabricMessage>(src_rank, len, const_cast<void*>(buf), (void*) addr,
                                 ep_impl->send_cq->id, // rma operations go to the tx
                                 remote_cq,
@@ -974,4 +937,9 @@ fi_addr_t sstmaci_str_to_fi_addr(const char *str)
   } catch (std::invalid_argument& ia){
     return std::numeric_limits<fi_addr_t>::max();
   }
+}
+
+int sstmaci_fi_addr_to_str(fi_addr_t addr, char* dest, int dest_size)
+{
+  return snprintf(dest, dest_size, SSTMAC_ADDR_FORMAT_STR, addr);
 }

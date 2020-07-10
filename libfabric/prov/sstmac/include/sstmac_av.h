@@ -1,18 +1,18 @@
 /**
-Copyright 2009-2020 National Technology and Engineering Solutions of Sandia, 
-LLC (NTESS).  Under the terms of Contract DE-NA-0003525, the U.S.  Government 
+Copyright 2009-2020 National Technology and Engineering Solutions of Sandia,
+LLC (NTESS).  Under the terms of Contract DE-NA-0003525, the U.S.  Government
 retains certain rights in this software.
 
 Sandia National Laboratories is a multimission laboratory managed and operated
-by National Technology and Engineering Solutions of Sandia, LLC., a wholly 
-owned subsidiary of Honeywell International, Inc., for the U.S. Department of 
+by National Technology and Engineering Solutions of Sandia, LLC., a wholly
+owned subsidiary of Honeywell International, Inc., for the U.S. Department of
 Energy's National Nuclear Security Administration under contract DE-NA0003525.
 
 Copyright (c) 2009-2020, NTESS
 
 All rights reserved.
 
-Redistribution and use in source and binary forms, with or without modification, 
+Redistribution and use in source and binary forms, with or without modification,
 are permitted provided that the following conditions are met:
 
     * Redistributions of source code must retain the above copyright
@@ -41,7 +41,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 Questions? Contact sst-macro-help@sandia.gov
 */
-
 #ifndef _SSTMAC_AV_H_
 #define _SSTMAC_AV_H_
 
@@ -50,20 +49,6 @@ Questions? Contact sst-macro-help@sandia.gov
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-struct sstmac_av_addr_entry {
-	struct sstmac_address sstmac_addr;
-	struct {
-		uint32_t name_type : 8;
-		uint32_t cm_nic_cdm_id : 24;
-		uint32_t cookie;
-	};
-	struct {
-		uint32_t rx_ctx_cnt : 8;
-		uint32_t key_offset: 12;
-		uint32_t unused1 : 12;
-	};
-};
 
 const char *sstmac_av_straddr(struct fid_av *av,
 			    const void *addr,

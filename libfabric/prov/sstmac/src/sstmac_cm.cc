@@ -129,25 +129,31 @@ struct fi_ops_cm sstmac_pep_ops_cm = {
   .join = fi_no_join,
 };
 
-EXTERN_C DIRECT_FN STATIC  int sstmac_getname(fid_t fid, void *addr, size_t *addrlen)
+static int sstmaci_get_addr(uint32_t addr_format, fi_addr_t fi_addr, void* addr, size_t *addrlen)
 {
-  sstmac_fid_ep* ep = (sstmac_fid_ep*) fid;
   int input_size = *addrlen;
-  if (ep->domain->addr_format == FI_ADDR_STR){
-    *addrlen = snprintf((char*)addr, *addrlen, "%" PRIu64, ep->src_addr);
+  if (addr_format == FI_ADDR_STR){
+    *addrlen = sstmaci_fi_addr_to_str(fi_addr, (char*)addr, *addrlen);
     if (*addrlen > input_size){
       return -FI_ETOOSMALL;
     }
-  } else if (ep->domain->addr_format == FI_ADDR_SSTMAC){
+  } else if (addr_format == FI_ADDR_SSTMAC){
     *addrlen = sizeof(fi_addr_t);
     if (input_size < sizeof(fi_addr_t)){
       return -FI_ETOOSMALL;
     }
+    *((fi_addr_t*)addr) = fi_addr;
   } else {
     warn_einval("got bad addr format");
+    return -FI_EINVAL;
   }
-
   return FI_SUCCESS;
+}
+
+EXTERN_C DIRECT_FN STATIC  int sstmac_getname(fid_t fid, void *addr, size_t *addrlen)
+{
+  sstmac_fid_ep* ep = (sstmac_fid_ep*) fid;
+  return sstmaci_get_addr(ep->domain->addr_format, ep->src_addr, addr, addrlen);
 }
 
 EXTERN_C DIRECT_FN STATIC  int sstmac_setname(fid_t fid, void *addr, size_t addrlen)
@@ -171,13 +177,21 @@ EXTERN_C DIRECT_FN STATIC  int sstmac_setname(fid_t fid, void *addr, size_t addr
     return -FI_EINVAL;
   }
 
-
-  // no need to worry about FI_ADDR_STR here
-  if (addrlen < sizeof(fi_addr_t)){
-    warn_einval("addrlen %zu is too small to hold fi_addr_t", addrlen);
+  fi_addr_t new_addr;
+  if (ep->domain->addr_format == FI_ADDR_STR){
+    new_addr = sstmaci_str_to_fi_addr((const char*) addr);
+    if (new_addr == std::numeric_limits<fi_addr_t>::max()){
+      warn_einval("failed to parse %s to fi_addr_t", (const char*) addr);
+      return -FI_EINVAL;
+    }
+  } else if (ep->domain->addr_format == FI_ADDR_SSTMAC){
+    new_addr = *((fi_addr_t*)addr);
+  } else {
+    warn_einval("domain addr_format is not FI_ADDR_STR or FI_ADDR_SSTMAC");
     return -FI_EINVAL;
   }
-  *addr_to_change = *((fi_addr_t*)addr);
+  *addr_to_change = new_addr;
+
   return FI_SUCCESS;
 }
 
@@ -185,16 +199,7 @@ EXTERN_C DIRECT_FN STATIC  int sstmac_getpeer(struct fid_ep *ep, void *addr,
 				  size_t *addrlen)
 {
   sstmac_fid_ep* ep_impl = (sstmac_fid_ep*) ep;
-  int input_size = *addrlen;
-  *addrlen =  sizeof(fi_addr_t);
-  if (*addrlen < sizeof(fi_addr_t)){
-    warn_einval("addrlen %d is too small to hold fi_addr_t", input_size);
-    return -FI_ETOOSMALL;
-  }
-
-  fi_addr_t* addr_ptr = (fi_addr_t*) addr;
-  *addr_ptr = ep_impl->dest_addr;
-  return FI_SUCCESS;
+  return sstmaci_get_addr(ep_impl->domain->addr_format, ep_impl->dest_addr, addr, addrlen);
 }
 
 EXTERN_C DIRECT_FN STATIC  int sstmac_connect(struct fid_ep */*ep*/, const void */*addr*/,

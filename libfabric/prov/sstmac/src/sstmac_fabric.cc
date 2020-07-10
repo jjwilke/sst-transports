@@ -1,18 +1,18 @@
 /**
-Copyright 2009-2020 National Technology and Engineering Solutions of Sandia, 
-LLC (NTESS).  Under the terms of Contract DE-NA-0003525, the U.S.  Government 
+Copyright 2009-2020 National Technology and Engineering Solutions of Sandia,
+LLC (NTESS).  Under the terms of Contract DE-NA-0003525, the U.S.  Government
 retains certain rights in this software.
 
 Sandia National Laboratories is a multimission laboratory managed and operated
-by National Technology and Engineering Solutions of Sandia, LLC., a wholly 
-owned subsidiary of Honeywell International, Inc., for the U.S. Department of 
+by National Technology and Engineering Solutions of Sandia, LLC., a wholly
+owned subsidiary of Honeywell International, Inc., for the U.S. Department of
 Energy's National Nuclear Security Administration under contract DE-NA0003525.
 
 Copyright (c) 2009-2020, NTESS
 
 All rights reserved.
 
-Redistribution and use in source and binary forms, with or without modification, 
+Redistribution and use in source and binary forms, with or without modification,
 are permitted provided that the following conditions are met:
 
     * Redistributions of source code must retain the above copyright
@@ -41,42 +41,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 Questions? Contact sst-macro-help@sandia.gov
 */
-/*
- * Copyright (c) 2014 Intel Corporation, Inc.  All rights reserved.
- * Copyright (c) 2015-2017 Los Alamos National Security, LLC.
- *                         All rights reserved.
- * Copyright (c) 2015-2017 Cray Inc. All rights reserved.
- * Copyrigth (c) 2019      Triad National Security, LLC. All rights
- *                         reserved.
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * BSD license below:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer.
- *
- *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials
- *        provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
 
 #if HAVE_CONFIG_H
 #include <config.h>
@@ -294,8 +258,8 @@ static struct fi_info *sstmac_allocinfo(void)
 
   sstmac_info->next = NULL;
   sstmac_info->addr_format = FI_ADDR_STR;
-  sstmac_info->src_addrlen = sizeof(struct sstmac_ep_name);
-  sstmac_info->dest_addrlen = sizeof(struct sstmac_ep_name);
+  sstmac_info->src_addrlen = sizeof(fi_addr_t);
+  sstmac_info->dest_addrlen = sizeof(fi_addr_t);
   sstmac_info->src_addr = NULL;
   sstmac_info->dest_addr = NULL;
 
@@ -638,7 +602,7 @@ __attribute__((visibility ("default"),EXTERNALLY_VISIBLE)) \
 struct fi_provider* fi_prov_ini(void)
 {
 	struct fi_provider *provider = NULL;
-	sstmac_return_t status;
+  //sstmac_return_t status;
   //sstmac_version_info_t lib_version;
 	int num_devices;
 	int ret;

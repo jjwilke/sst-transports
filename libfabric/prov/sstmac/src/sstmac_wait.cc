@@ -81,20 +81,7 @@ struct sstmac_fid_wait_set {
 
 static int sstmac_wait_control(struct fid *wait, int command, void *arg)
 {
-/*
-	struct fid_wait *wait_fid_priv;
-
-	SSTMAC_TRACE(WAIT_SUB, "\n");
-
-	wait_fid_priv = container_of(wait, struct fid_wait, fid);
-*/
-
-	switch (command) {
-	case FI_GETWAIT:
-		return -FI_ENOSYS;
-	default:
-		return -FI_EINVAL;
-	}
+  return -FI_ENOSYS;
 }
 
 
@@ -107,10 +94,7 @@ extern "C" void sstmaci_add_wait(struct fid_wait *wait, struct fid *wait_obj)
 
 extern "C" DIRECT_FN  int sstmac_wait_wait(struct fid_wait *wait, int timeout)
 {
-	int err = 0, ret;
-	char c;
-  spkt_abort_printf("unimplemented: sstmac_wait_wait for wait set");
-  return FI_SUCCESS;
+  return -FI_ENOSYS;
 }
 
 extern "C" int sstmac_wait_close(struct fid *wait)

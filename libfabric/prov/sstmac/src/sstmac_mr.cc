@@ -63,8 +63,6 @@ extern "C" DIRECT_FN  int sstmac_mr_regattr(struct fid *fid, const struct fi_mr_
 	uint64_t flags, struct fid_mr **mr);
 extern "C" DIRECT_FN  int sstmac_mr_bind(fid_t fid, struct fid *bfid, uint64_t flags);
 
-/* global declarations */
-/* memory registration operations */
 static struct fi_ops fi_sstmac_mr_ops = {
 	.size = sizeof(struct fi_ops),
 	.close = fi_sstmac_mr_close,

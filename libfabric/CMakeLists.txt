@@ -15,8 +15,6 @@ set(sstmac_sources
 )
 
 set(sstmac_headers
-	prov/sstmac/include/fi_ext_sstmac.h
-  prov/sstmac/include/fi_ext_sstmac.h
   prov/sstmac/include/sstmac.h
   prov/sstmac/include/sstmac_av.h
   prov/sstmac/include/sstmac_ep.h
@@ -150,7 +148,6 @@ set(libfabric_headers
 )
 
 set(rdmainclude_headers
-	prov/sstmac/include/fi_ext_sstmac.h
 	include/rdma/fabric.h
 	include/rdma/fi_atomic.h
 	include/rdma/fi_cm.h

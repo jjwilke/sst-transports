@@ -1,18 +1,18 @@
 /**
-Copyright 2009-2020 National Technology and Engineering Solutions of Sandia, 
-LLC (NTESS).  Under the terms of Contract DE-NA-0003525, the U.S.  Government 
+Copyright 2009-2020 National Technology and Engineering Solutions of Sandia,
+LLC (NTESS).  Under the terms of Contract DE-NA-0003525, the U.S.  Government
 retains certain rights in this software.
 
 Sandia National Laboratories is a multimission laboratory managed and operated
-by National Technology and Engineering Solutions of Sandia, LLC., a wholly 
-owned subsidiary of Honeywell International, Inc., for the U.S. Department of 
+by National Technology and Engineering Solutions of Sandia, LLC., a wholly
+owned subsidiary of Honeywell International, Inc., for the U.S. Department of
 Energy's National Nuclear Security Administration under contract DE-NA0003525.
 
 Copyright (c) 2009-2020, NTESS
 
 All rights reserved.
 
-Redistribution and use in source and binary forms, with or without modification, 
+Redistribution and use in source and binary forms, with or without modification,
 are permitted provided that the following conditions are met:
 
     * Redistributions of source code must retain the above copyright
@@ -41,45 +41,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 Questions? Contact sst-macro-help@sandia.gov
 */
-/*
- * Copyright (c) 2015-2017 Cray Inc. All rights reserved.
- * Copyright (c) 2015-2017 Los Alamos National Security, LLC.
- *                         All rights reserved.
- * Copyright (c) 2019      Triad National Security, LLC.
- *                         All rights reserved.
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * BSD license below:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer.
- *
- *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials
- *        provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
 
-//
-// Address vector common code
-//
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
@@ -113,9 +75,6 @@ DIRECT_FN const char *sstmac_av_straddr(struct fid_av *av,
 
 static int sstmac_av_close(fid_t fid);
 
-/*******************************************************************************
- * FI_OPS_* data structures.
- ******************************************************************************/
 static struct fi_ops_av sstmac_av_ops = {
   .size = sizeof(struct fi_ops_av),
   .insert = sstmac_av_insert,
@@ -134,37 +93,31 @@ static struct fi_ops sstmac_fi_av_ops = {
   .ops_open = fi_no_ops_open
 };
 
-/*
- * Note: this function (according to WG), is not intended to
- * typically be used in the critical path for messaging/rma/amo
- * requests
- */
+
 EXTERN_C DIRECT_FN STATIC  int sstmac_av_lookup(struct fid_av *av, fi_addr_t fi_addr,
 				    void *addr, size_t *addrlen)
 {
   sstmac_fid_av* av_impl = (sstmac_fid_av*) av;
+  int input_size = *addrlen;
   if (av_impl->domain->addr_format == FI_ADDR_SSTMAC){
-    if (*addrlen < sizeof(uint64_t)){
-      warn_einval("addrlen given (%zu) is too short to hold addrlen 8",
-                  *addrlen);
-      return -FI_EINVAL;
+    *addrlen = sizeof(fi_addr_t);
+    if (input_size >= sizeof(fi_addr_t)){
+      uint64_t* addr_int = (uint64_t*) addr;
+      *addr_int = fi_addr;
     }
-    uint64_t* addr_int = (uint64_t*) addr;
-    *addr_int = fi_addr;
   } else if (av_impl->domain->addr_format == FI_ADDR_STR){
-    if (*addrlen < SSTMAC_MAX_ADDR_LEN){
-      warn_einval("addrlen given (%zu) is too short to hold addrlen %d",
-                  *addrlen, SSTMAC_MAX_ADDR_LEN);
-      return -FI_EINVAL;
-    }
-    //all addresses are just strings of the rank
-    snprintf((char*)addr, SSTMAC_MAX_ADDR_LEN, SSTMAC_ADDR_FORMAT_STR, fi_addr);
-    *addrlen = SSTMAC_MAX_ADDR_LEN;
+    // we don't check if buf is too small, we just truncate
+    *addrlen = sstmaci_fi_addr_to_str(fi_addr, (char*)addr, *addrlen);
   } else {
-    warn_einval("got addr format that isn't SSTMAC or STR");
+    warn_einval("got addr format that isn't FI_ADDR_SSTMAC or FI_ADDR_STR");
     return -FI_EINVAL;
   }
-  return FI_SUCCESS;
+
+  if (*addrlen > input_size){
+    return -FI_ETOOSMALL;
+  } else {
+    return FI_SUCCESS;
+  }
 }
 
 EXTERN_C DIRECT_FN STATIC  int sstmac_av_insert(struct fid_av *av, const void *addr,
@@ -224,11 +177,11 @@ DIRECT_FN const char *sstmac_av_straddr(struct fid_av *av,
     ::strcpy(ret, (const char*)addr);
   } else if (av_impl->domain->addr_format == FI_ADDR_SSTMAC) {
     uint64_t* addr_ptr = (uint64_t*) addr;
-    uint32_t rank = ADDR_RANK(*addr_ptr);
-    uint16_t cq = ADDR_CQ(*addr_ptr);
+    uint32_t rank = SSTMAC_ADDR_RANK(*addr_ptr);
+    uint16_t cq = SSTMAC_ADDR_CQ(*addr_ptr);
     sprintf(ret, "%" PRIu32 ".%" PRIu16, rank, cq);
   } else {
-    warn_einval("got addr format that isn't SSTMAC or STR");
+    warn_einval("got addr format that isn't FI_ADDR_SSTMAC or FI_ADDR_STR");
     ret[0] = '\0';
   }
   *len = ::strlen(ret);

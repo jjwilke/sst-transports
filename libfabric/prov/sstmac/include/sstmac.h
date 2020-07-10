@@ -1,18 +1,18 @@
 /**
-Copyright 2009-2020 National Technology and Engineering Solutions of Sandia, 
-LLC (NTESS).  Under the terms of Contract DE-NA-0003525, the U.S.  Government 
+Copyright 2009-2020 National Technology and Engineering Solutions of Sandia,
+LLC (NTESS).  Under the terms of Contract DE-NA-0003525, the U.S.  Government
 retains certain rights in this software.
 
 Sandia National Laboratories is a multimission laboratory managed and operated
-by National Technology and Engineering Solutions of Sandia, LLC., a wholly 
-owned subsidiary of Honeywell International, Inc., for the U.S. Department of 
+by National Technology and Engineering Solutions of Sandia, LLC., a wholly
+owned subsidiary of Honeywell International, Inc., for the U.S. Department of
 Energy's National Nuclear Security Administration under contract DE-NA0003525.
 
 Copyright (c) 2009-2020, NTESS
 
 All rights reserved.
 
-Redistribution and use in source and binary forms, with or without modification, 
+Redistribution and use in source and binary forms, with or without modification,
 are permitted provided that the following conditions are met:
 
     * Redistributions of source code must retain the above copyright
@@ -72,27 +72,10 @@ Questions? Contact sst-macro-help@sandia.gov
 #include <ofi_list.h>
 #include <ofi_file.h>
 
-#include "fi_ext_sstmac.h"
-
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-struct sstmac_mem_handle_t {
-  int ignore;
-};
-
-/*
- * useful macros
- */
-#ifndef FLOOR
-#define FLOOR(a, b) ((long long)(a) - (((long long)(a)) % (b)))
-#endif
-
-#ifndef CEILING
-#define CEILING(a, b) ((long long)(a) <= 0LL ? 0 : (FLOOR((a)-1, b) + (b)))
-#endif
 
 #ifndef compiler_barrier
 #define compiler_barrier() asm volatile ("" ::: "memory")
@@ -101,42 +84,6 @@ struct sstmac_mem_handle_t {
 #define SSTMAC_MAX_MSG_IOV_LIMIT 1
 #define SSTMAC_MAX_RMA_IOV_LIMIT 1
 #define SSTMAC_MAX_ATOMIC_IOV_LIMIT 1
-#define SSTMAC_ADDR_CACHE_SIZE 5
-
-/*
- * GNI GET alignment
- */
-
-#define SSTMAC_READ_ALIGN		4
-#define SSTMAC_READ_ALIGN_MASK	(SSTMAC_READ_ALIGN - 1)
-
-/*
- * GNI IOV GET alignment
- *
- * We always pull 4byte chucks for unaligned GETs. To prevent stomping on
- * someone else's head or tail data, each segment must be four bytes
- * (i.e. SSTMAC_READ_ALIGN bytes).
- *
- * Note: "* 2" for head and tail
- */
-#define SSTMAC_INT_TX_BUF_SZ (SSTMAC_MAX_MSG_IOV_LIMIT * SSTMAC_READ_ALIGN * 2)
-
-/*
- * Flags
- * The 64-bit flag field is used as follows:
- * 1-grow up    common (usable with multiple operations)
- * 59-grow down operation specific (used for single call/class)
- * 60 - 63      provider specific
- */
-
-#define SSTMAC_SUPPRESS_COMPLETION	(1ULL << 60)	/* TX only flag */
-
-#define SSTMAC_RMA_RDMA			(1ULL << 61)	/* RMA only flag */
-#define SSTMAC_RMA_INDIRECT		(1ULL << 62)	/* RMA only flag */
-#define SSTMAC_RMA_CHAINED		(1ULL << 63)	/* RMA only flag */
-
-#define SSTMAC_MSG_RENDEZVOUS		(1ULL << 61)	/* MSG only flag */
-#define SSTMAC_MSG_GET_TAIL		(1ULL << 62)	/* MSG only flag */
 
 
 #define SSTMAC_SUPPORTED_FLAGS (FI_NUMERICHOST | FI_SOURCE)
@@ -186,75 +133,12 @@ struct sstmac_mem_handle_t {
 #define SSTMAC_SEP_MAX_CNT	(1 << (SSTMAC_RX_CTX_MAX_BITS - 1))
 
 #define SSTMAC_MAX_MSG_SIZE (1<<31)
-#define SSTMAC_CACHELINE_SIZE (64)
 #define SSTMAC_INJECT_SIZE 64
 #define SSTMAC_MAX_INJECT_SIZE 64
 
 #define SSTMAC_FAB_MODES	0
 
 #define SSTMAC_FAB_MODES_CLEAR (FI_MSG_PREFIX | FI_ASYNC_IOV)
-
-struct sstmac_address {
-	uint32_t device_addr;
-	uint32_t cdm_id;
-};
-
-#define SSTMAC_ADDR_UNSPEC(var) (((var).device_addr == -1) && \
-				((var).cdm_id == -1))
-
-#define SSTMAC_ADDR_EQUAL(a, b) (((a).device_addr == (b).device_addr) && \
-				((a).cdm_id == (b).cdm_id))
-
-#define SSTMAC_CREATE_CDM_ID	0
-
-#define SSTMAC_EPN_TYPE_UNBOUND	(1 << 0)
-#define SSTMAC_EPN_TYPE_BOUND	(1 << 1)
-#define SSTMAC_EPN_TYPE_SEP	(1 << 2)
-
-struct sstmac_ep_name {
-  struct sstmac_address sstmac_addr;
-  struct {
-    uint32_t name_type : 8;
-    uint32_t cm_nic_cdm_id : 24;
-    uint32_t cookie;
-  };
-  struct {
-    uint32_t rx_ctx_cnt : 8;
-    uint32_t key_offset : 12;
-    uint32_t unused1 : 12;
-    uint32_t unused2;
-  };
-  uint64_t reserved[3];
-};
-
-/* AV address string revision. */
-#define SSTMAC_AV_STR_ADDR_VERSION  1
-
-/*
- * 52 is the number of characters printed out in sstmac_av_straddr.
- *  1 is for the null terminator
- */
-#define SSTMAC_AV_MAX_STR_ADDR_LEN  (52 + 1)
-
-/*
- * 15 is the number of characters for the device addr.
- *  1 is for the null terminator
- */
-#define SSTMAC_AV_MIN_STR_ADDR_LEN  (15 + 1)
-
-/*
- * 69 is the number of characters for the printable portion of the address
- *  1 is for the null terminator
- */
-#define SSTMAC_FI_ADDR_STR_LEN (69 + 1)
-
-/*
- * enum for blocking/non-blocking progress
- */
-enum sstmac_progress_type {
-	SSTMAC_PRG_BLOCKING,
-	SSTMAC_PRG_NON_BLOCKING
-};
 
 
 struct sstmac_fid_tport;
@@ -283,71 +167,6 @@ struct sstmac_fid_domain {
   uint32_t addr_format;
 };
 
-struct sstmac_fid_pep {
-	struct fid_pep pep_fid;
-	struct sstmac_fid_fabric *fabric;
-	struct fi_info *info;
-	struct sstmac_fid_eq *eq;
-	struct sstmac_ep_name src_addr;
-	fastlock_t lock;
-	int listen_fd;
-	int backlog;
-	int bound;
-	size_t cm_data_size;
-  //struct sstmac_reference ref_cnt;
-};
-
-#define SSTMAC_CQS_PER_EP		8
-
-struct sstmac_fid_ep_ops_en {
-	uint32_t msg_recv_allowed: 1;
-	uint32_t msg_send_allowed: 1;
-	uint32_t rma_read_allowed: 1;
-	uint32_t rma_write_allowed: 1;
-	uint32_t tagged_recv_allowed: 1;
-	uint32_t tagged_send_allowed: 1;
-	uint32_t atomic_read_allowed: 1;
-	uint32_t atomic_write_allowed: 1;
-};
-
-#define SSTMAC_INT_TX_POOL_SIZE 128
-#define SSTMAC_INT_TX_POOL_COUNT 256
-
-struct sstmac_int_tx_buf {
-	struct slist_entry e;
-	uint8_t *buf;
-	struct sstmac_fid_mem_desc *md;
-};
-
-typedef int sstmac_return_t;
-
-struct sstmac_int_tx_ptrs {
-	struct slist_entry e;
-	void *sl_ptr;
-	void *buf_ptr;
-	struct sstmac_fid_mem_desc *md;
-};
-
-struct sstmac_int_tx_pool {
-	bool enabled;
-	int nbufs;
-	fastlock_t lock;
-	struct slist sl;
-	struct slist bl;
-};
-
-struct sstmac_addr_cache_entry {
-	fi_addr_t addr;
-	struct sstmac_vc *vc;
-};
-
-enum sstmac_conn_state {
-	SSTMAC_EP_UNCONNECTED,
-	SSTMAC_EP_CONNECTING,
-	SSTMAC_EP_CONNECTED,
-	SSTMAC_EP_SHUTDOWN
-};
-
 struct sstmac_fid_ep {
 	struct fid_ep ep_fid;
 	enum fi_ep_type type;
@@ -371,23 +190,6 @@ struct sstmac_fid_ep {
   int qos;
 };
 
-struct sstmac_fid_sep {
-	struct fid_ep ep_fid;
-	enum fi_ep_type type;
-	struct fid_domain *domain;
-	struct fi_info *info;
-	uint64_t caps;
-	uint32_t cdm_id_base;
-	struct fid_ep **ep_table;
-	struct fid_ep **tx_ep_table;
-	struct fid_ep **rx_ep_table;
-	bool *enabled;
-	struct sstmac_cm_nic *cm_nic;
-	struct sstmac_fid_av *av;
-	struct sstmac_ep_name my_name;
-	fastlock_t sep_lock;
-  //struct sstmac_reference ref_cnt;
-};
 
 struct sstmac_fid_trx {
   sstmac_fid_ep ep;
@@ -404,42 +206,6 @@ struct sstmac_fid_stx {
 struct sstmac_fid_av {
   fid_av av_fid;
   sstmac_fid_domain* domain;
-};
-
-enum sstmac_fab_req_type {
-	SSTMAC_FAB_RQ_SEND,
-	SSTMAC_FAB_RQ_SENDV,
-	SSTMAC_FAB_RQ_TSEND,
-	SSTMAC_FAB_RQ_TSENDV,
-	SSTMAC_FAB_RQ_RDMA_WRITE,
-	SSTMAC_FAB_RQ_RDMA_READ,
-	SSTMAC_FAB_RQ_RECV,
-	SSTMAC_FAB_RQ_RECVV,
-	SSTMAC_FAB_RQ_TRECV,
-	SSTMAC_FAB_RQ_TRECVV,
-	SSTMAC_FAB_RQ_MRECV,
-	SSTMAC_FAB_RQ_AMO,
-	SSTMAC_FAB_RQ_FAMO,
-	SSTMAC_FAB_RQ_CAMO,
-	SSTMAC_FAB_RQ_END_NON_NATIVE,
-  SSTMAC_FAB_RQ_START_NATIV,
-  SSTMAC_FAB_RQ_NAMO_AX,
-  SSTMAC_FAB_RQ_NAMO_AX_S,
-  SSTMAC_FAB_RQ_NAMO_FAX,
-  SSTMAC_FAB_RQ_NAMO_FAX_S,
-	SSTMAC_FAB_RQ_MAX_TYPES,
-};
-
-struct sstmac_fab_req_rma {
-	uint64_t                 loc_addr;
-	struct sstmac_fid_mem_desc *loc_md;
-	size_t                   len;
-	uint64_t                 rem_addr;
-	uint64_t                 rem_mr_key;
-	uint64_t                 imm;
-	ofi_atomic32_t           outstanding_txds;
-	sstmac_return_t             status;
-	struct slist_entry       sle;
 };
 
 struct sstmac_fid_eq {
@@ -465,10 +231,10 @@ struct sstmac_fid_srx {
   sstmac_fid_domain* domain;
 };
 
-#define ADDR_CQ(addr)    ((addr) | 0xFFFF)
-#define ADDR_RANK(addr)  (((addr) >> 32) | 0xFFFFFFFF)
-#define ADDR_RANK_BITS(rank)    ((rank) << 32)
-#define ADDR_CQ_BITS(cq)        (cq)
+#define SSTMAC_ADDR_CQ(addr)    ((addr) | 0xFFFF)
+#define SSTMAC_ADDR_RANK(addr)  (((addr) >> 32) | 0xFFFFFFFF)
+#define SSTMAC_ADDR_RANK_BITS(rank)    ((rank) << 32)
+#define SSTMAC_ADDR_CQ_BITS(cq)        (cq)
 
 #define SSTMAC_MAX_ADDR_CHARS 7
 #define SSTMAC_ADDR_FORMAT_STR "%7" PRIu64
@@ -488,6 +254,13 @@ extern const char sstmac_dom_name[];
  * @return limits<fi_addr_t>::max() on failure, otherwise the value
  */
 fi_addr_t sstmaci_str_to_fi_addr(const char* str);
+
+/**
+ * @brief sstmaci_fi_addr_to_str
+ * @param dest
+ * @return The number of chars that would have been written in large enough buffer (same as snprintf)
+ */
+int sstmaci_fi_addr_to_str(fi_addr_t, char* dest, int dest_size);
 
 /*
  * prototypes for fi ops methods
