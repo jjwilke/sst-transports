@@ -261,11 +261,6 @@ UGNITransport* sstmac_ugni()
   return t->getApi<UGNITransport>("ugni");
 }
 
-sumi::Transport* activeTransport()
-{
-  return sstmac_ugni(); 
-}
-
 extern "C" gni_return_t
 GNI_GetCompleted(
   gni_cq_handle_t cq_hndl,

@@ -77,6 +77,9 @@ static struct fi_ops_ep sstmac_ep_ops = {
   .tx_size_left = sstmac_ep_tx_size_left,
 };
 
+extern struct fi_ops_cm sstmac_ep_msg_ops_cm;
+extern struct fi_ops_cm sstmac_ep_ops_cm;
+
 DIRECT_FN STATIC ssize_t sstmac_ep_recv(struct fid_ep *ep, void *buf, size_t len,
               void *desc, fi_addr_t src_addr,
               void *context);
@@ -740,7 +743,11 @@ DIRECT_FN STATIC ssize_t sstmac_ep_atomic_compwritemsg(struct fid_ep *ep,
 
 EXTERN_C DIRECT_FN STATIC  int sstmac_ep_control(fid_t fid, int command, void *arg)
 {
-  return -FI_ENOSYS;
+  if (command == FI_ENABLE){
+    return FI_SUCCESS;
+  } else {
+    return -FI_ENOSYS;
+  }
 }
 
 extern "C" int sstmac_ep_close(fid_t fid)
@@ -761,6 +768,7 @@ extern "C" DIRECT_FN  int sstmac_ep_bind(fid_t fid, struct fid *bfid, uint64_t f
     case FI_CLASS_EQ: {
       sstmac_fid_eq* eq = (sstmac_fid_eq*) bfid;
       if (ep->domain->fabric != eq->fabric) {
+        warn_einval("EP fabric does not match EQ fabric in ep_bind");
         return -FI_EINVAL;
       }
       ep->eq = eq;
@@ -770,30 +778,34 @@ extern "C" DIRECT_FN  int sstmac_ep_bind(fid_t fid, struct fid *bfid, uint64_t f
       sstmac_fid_cq* cq = (sstmac_fid_cq*) bfid;
 
       if (ep->domain != cq->domain) {
+        warn_einval("EP domain does not match CQ fabric in ep_bind");
         return -FI_EINVAL;
       }
 
       if (flags & FI_TRANSMIT) {
         if (ep->send_cq) {
+          warn_einval("attempting to rebind send_cq");
           return -FI_EINVAL; //can't rebind send CQ
         }
         ep->send_cq = cq;
         if (flags & FI_SELECTIVE_COMPLETION) {
           //for now, don't allow selective completion
           //all messages will generate completion entries
+          warn_einval("sstmac does not yet support selective completion for send_cq");
           return -FI_EINVAL;
         }
       }
 
       if (flags & FI_RECV) {
         if (ep->recv_cq) {
+          warn_einval("attempting to rebind recv_cq");
           return -FI_EINVAL;
         }
         ep->recv_cq = cq;
-
         if (flags & FI_SELECTIVE_COMPLETION) {
           //for now, don't allow selective completion
           //all messages will generate completion entries
+          warn_einval("sstmac does not yet support selective completion for recv_cq");
           return -FI_EINVAL;
         }
       }
@@ -806,24 +818,26 @@ extern "C" DIRECT_FN  int sstmac_ep_bind(fid_t fid, struct fid *bfid, uint64_t f
     case FI_CLASS_AV: {
       sstmac_fid_av* av = (sstmac_fid_av*) bfid;
       if (ep->domain != av->domain) {
+        warn_einval("EP domain does not match AV domain in ep_bind");
         return -FI_EINVAL;
       }
       break;
     }
     case FI_CLASS_CNTR: //TODO
-      return -FI_EINVAL;
+      warn_einval("sstmac does not yet support binding FI_CLASS_CNTR");
+      return -FI_ENOSYS;
     case FI_CLASS_MR: //TODO
-      return -FI_EINVAL;
+      warn_einval("sstmac does not yet support binding FI_CLASS_MR");
+      return -FI_ENOSYS;
     case FI_CLASS_SRX_CTX:
-
     case FI_CLASS_STX_CTX:
       //we really don't need to do anything here
       //in some sense, all sstmacro endpoints are shared transmit contexts
       break;
     default:
+      warn_einval("sstmac does not yet support binding given FI_CLASS_");
       return -FI_ENOSYS;
       break;
-
   }
   return FI_SUCCESS;
 }
@@ -836,6 +850,7 @@ extern "C" DIRECT_FN  int sstmac_ep_open(struct fid_domain *domain, struct fi_in
   ep_impl->ep_fid.fid.fclass = FI_CLASS_EP;
   ep_impl->ep_fid.fid.context = context;
   ep_impl->ep_fid.fid.ops = &sstmac_ep_fi_ops;
+  ep_impl->ep_fid.cm = &sstmac_ep_ops_cm;
   ep_impl->ep_fid.ops = &sstmac_ep_ops;
   ep_impl->ep_fid.msg = &sstmac_ep_msg_ops;
   ep_impl->ep_fid.rma = &sstmac_ep_rma_ops;
@@ -855,7 +870,10 @@ extern "C" DIRECT_FN  int sstmac_ep_open(struct fid_domain *domain, struct fi_in
   switch(ep_impl->type){
   case FI_EP_DGRAM:
   case FI_EP_RDM:
+    ep_impl->ep_fid.cm = &sstmac_ep_ops_cm;
+    break;
   case FI_EP_MSG:
+    ep_impl->ep_fid.cm = &sstmac_ep_msg_ops_cm;
     break;
   default:
     return -FI_EINVAL;

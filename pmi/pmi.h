@@ -2,6 +2,7 @@
 #define sstmac_ugni_PMI_H
 
 #define PMI_SUCCESS 0
+#define PMI_ERR_INVALID_LENGTH 1
 
 #ifdef __cplusplus
 extern "C" {

@@ -656,6 +656,7 @@ void fi_ini(void)
 libdl_done:
 #endif
 
+	ofi_register_provider(SSTMAC_INIT, NULL);
 	ofi_register_provider(PSM2_INIT, NULL);
 	ofi_register_provider(PSM_INIT, NULL);
 	ofi_register_provider(USNIC_INIT, NULL);

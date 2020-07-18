@@ -1,16 +1,15 @@
 include(GNUInstallDirs)
 
 add_library(ugni SHARED
-  libpmi.cc
   libugni.cc
   libibverbs.c
 )
 target_link_libraries(ugni PRIVATE SST::SSTMacro)
+target_link_libraries(ugni PRIVATE pmi)
 
 install(FILES
   gni_pub.h
   hugetlbfs.h
-  pmi.h
   pmi_cray.h
   udreg_pub.h
   verbs.h
@@ -18,6 +17,7 @@ install(FILES
 )
 
 install(TARGETS ugni LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
+install(TARGETS pmi LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
 configure_file(cray-gni-headers.pc.in ${CMAKE_BINARY_DIR}/cray-gni-headers.pc @ONLY)
 configure_file(cray-ugni.pc.in ${CMAKE_BINARY_DIR}/cray-ugni.pc @ONLY)

@@ -233,12 +233,13 @@ extern "C" DIRECT_FN  int sstmac_cq_open(struct fid_domain *domain, struct fi_cq
 			   struct fid_cq **cq, void *context)
 {
   sstmac_fid_domain* domain_impl = (sstmac_fid_domain*) domain;
-  FabricTransport* tport = (FabricTransport*) domain_impl;
+  FabricTransport* tport = (FabricTransport*) domain_impl->fabric->tport;
   int id = tport->allocateCqId();
   sstmac_fid_cq* cq_impl = (sstmac_fid_cq*) calloc(1, sizeof(sstmac_fid_cq));
   cq_impl->domain = domain_impl;
   cq_impl->id = id;
   cq_impl->format = attr->format;
+  cq_impl->cq_fid.fid.fclass = FI_CLASS_CQ;
 
   struct fi_wait_attr requested = {
     .wait_obj = attr->wait_obj,

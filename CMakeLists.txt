@@ -5,5 +5,6 @@ cmake_policy(SET CMP0074 NEW)
 find_package(SSTMacro REQUIRED)
 
 add_subdirectory(ibverbs)
+add_subdirectory(pmi)
 add_subdirectory(ugni)
 add_subdirectory(libfabric)

@@ -344,7 +344,6 @@ static int sstmaci_resolve_node(const char *node, const char *service,
         }
       }
       *((fi_addr_t*)info->src_addr) = tport->rank();
-      return FI_SUCCESS;
     }
   }
   src.success();
@@ -373,6 +372,9 @@ static int sstmac_ep_getinfo(enum fi_ep_type ep_type, uint32_t version,
   if ((hints && hints->ep_attr) &&
       (hints->ep_attr->type != FI_EP_UNSPEC &&
        hints->ep_attr->type != ep_type)) {
+    warn_einval("given ep_type %s does not match hints %s",
+                std::string(fi_tostr(&ep_type, FI_TYPE_EP_TYPE)).c_str(),
+                std::string(fi_tostr(&hints->ep_attr->type, FI_TYPE_EP_TYPE)).c_str());
     return -FI_ENODATA;
   }
 
@@ -383,7 +385,11 @@ static int sstmac_ep_getinfo(enum fi_ep_type ep_type, uint32_t version,
       info->addr_format = FI_ADDR_STR;
     } else if (hints->addr_format == FI_ADDR_SSTMAC){
       info->addr_format = FI_ADDR_SSTMAC;
+    } else if (hints->addr_format == FI_FORMAT_UNSPEC){
+      info->addr_format = FI_ADDR_SSTMAC;
     } else {
+      warn_einval("given hints->addr_format %s is not FI_ADDR_STR or FI_ADDR_SSTMAC",
+                  fi_tostr(&hints->addr_format, FI_TYPE_ADDR_FORMAT));
       return -FI_ENODATA;
     }
 
@@ -394,6 +400,7 @@ static int sstmac_ep_getinfo(enum fi_ep_type ep_type, uint32_t version,
         case FI_PROTO_SSTMAC:
           break; //this better be unspecified or SSTMAC-specific
         default:
+          warn_einval("protocol must be FI_PROTO_UNSPEC or FI_PROTO_SSTMAC");
           return -FI_ENODATA;
       }
 
@@ -401,6 +408,7 @@ static int sstmac_ep_getinfo(enum fi_ep_type ep_type, uint32_t version,
         (hints->ep_attr->tx_ctx_cnt != FI_SHARED_CONTEXT)) {
           //exceeds the maximum number of contexts and is not
           //asking for a single shared context
+          warn_einval("tx_ctx_cnt given bad value");
           return -FI_ENODATA;
       } else if (hints->ep_attr->tx_ctx_cnt != 0) {
         //valid requested value
@@ -411,6 +419,7 @@ static int sstmac_ep_getinfo(enum fi_ep_type ep_type, uint32_t version,
         (hints->ep_attr->rx_ctx_cnt != FI_SHARED_CONTEXT)) {
           //exceeds the maximum number of contexts and is not
           //asking for a single shared context
+          warn_einval("rx_ctx_cnt given bad value");
           return -FI_ENODATA;
       } else if (hints->ep_attr->rx_ctx_cnt != 0){
         //valid requested value
@@ -418,6 +427,7 @@ static int sstmac_ep_getinfo(enum fi_ep_type ep_type, uint32_t version,
       }
 
       if (hints->ep_attr->max_msg_size > SSTMAC_MAX_MSG_SIZE){
+        warn_einval("requested max_msg_size too large");
         return -FI_ENODATA;
       }
     }
@@ -427,6 +437,7 @@ static int sstmac_ep_getinfo(enum fi_ep_type ep_type, uint32_t version,
       if ( (hints->mode & SSTMAC_FAB_MODES) != SSTMAC_FAB_MODES ){
         //the application explicitly does not support modes
         //that the sstmac provider uses
+        warn_einval("requested unsupported fabric modes");
         return -FI_ENODATA;
       }
       //tell the application which modes it supports
@@ -437,6 +448,7 @@ static int sstmac_ep_getinfo(enum fi_ep_type ep_type, uint32_t version,
     if (hints->caps){
       if ((hints->caps & SSTMAC_EP_CAPS) != hints->caps){
         // app is requesting capabilities I don't have
+        warn_einval("requested unsupported fabric capabilities");
         return -FI_ENODATA;
       } else {
         info->caps = hints->caps;
@@ -447,30 +459,40 @@ static int sstmac_ep_getinfo(enum fi_ep_type ep_type, uint32_t version,
     if (hints->tx_attr){
       if ((hints->tx_attr->op_flags & SSTMAC_EP_OP_FLAGS) != hints->tx_attr->op_flags){
         //the app is requesting operations I don't support
+        warn_einval("requested unsupported op_flags");
         return -FI_ENODATA;
       }
       if (hints->tx_attr->inject_size > SSTMAC_MAX_INJECT_SIZE){
+        warn_einval("requested inject_size is too large");
         return -FI_ENODATA;
       }
 
       //we current do not support any ordering relationships
       //if the app requires ordering, we can't help it
-      if (hints->tx_attr->comp_order && hints->tx_attr->comp_order != FI_ORDER_NONE){
+      if (hints->tx_attr->comp_order && hints->tx_attr->comp_order != FI_ORDER_NONE
+           && hints->tx_attr->comp_order != FI_ORDER_SAS){
+        warn_einval("requested incompatible tx_attr->comp_order %s",
+                    fi_tostr(&hints->tx_attr->comp_order, FI_TYPE_MSG_ORDER));
         return -FI_ENODATA;
       }
-      if (hints->tx_attr->msg_order && hints->tx_attr->msg_order != FI_ORDER_NONE){
+      if  (hints->tx_attr->msg_order && hints->tx_attr->msg_order != FI_ORDER_NONE
+            && hints->tx_attr->msg_order != FI_ORDER_SAS){
+        warn_einval("requested incompatible tx_attr->msg_order %s",
+                    fi_tostr(&hints->tx_attr->msg_order, FI_TYPE_MSG_ORDER));
         return -FI_ENODATA;
       }
 
       if (hints->tx_attr->caps){
         if (hints->caps){
-          if ((hints->caps & hints->rx_attr->caps) != hints->rx_attr->caps){
-            //the endpoint capabilities are LOWER than the tx capabilities, not okay
+          if ((hints->caps & hints->tx_attr->caps) != hints->tx_attr->caps){
+            warn_einval("requested more tx capabilities than ep capabilities");
+            //the endpoint capabilities are LOWER than the rx capabilities, not okay
             return -FI_ENODATA;
           }
         }
 
-        if ((hints->rx_attr->caps & SSTMAC_EP_CAPS) != hints->rx_attr->caps){
+        if ((hints->tx_attr->caps & SSTMAC_EP_CAPS) != hints->tx_attr->caps){
+          warn_einval("requested more tx capabilities than supported by sstmac");
           //requesting more capabilities than I have
           return -FI_ENODATA;
         }
@@ -478,17 +500,24 @@ static int sstmac_ep_getinfo(enum fi_ep_type ep_type, uint32_t version,
     }
 
     if (hints->rx_attr){
-      if ((hints->rx_attr->op_flags & SSTMAC_EP_OP_FLAGS) != hints->tx_attr->op_flags){
+      if ((hints->rx_attr->op_flags & SSTMAC_EP_OP_FLAGS) != hints->rx_attr->op_flags){
+        warn_einval("requested more rx capabilities than ep capabilities");
         //the app is requesting operations I don't support
         return -FI_ENODATA;
       }
 
       //we current do not support any ordering relationships
       //if the app requires ordering, we can't help it
-      if (hints->rx_attr->comp_order && hints->rx_attr->comp_order != FI_ORDER_NONE){
+      if (hints->rx_attr->comp_order && hints->rx_attr->comp_order != FI_ORDER_NONE
+           && hints->rx_attr->comp_order != FI_ORDER_SAS){
+        warn_einval("requested incompatible rx_attr->comp_order %s",
+                    fi_tostr(&hints->rx_attr->comp_order, FI_TYPE_MSG_ORDER));
         return -FI_ENODATA;
       }
-      if (hints->rx_attr->msg_order && hints->rx_attr->msg_order != FI_ORDER_NONE){
+      if (hints->rx_attr->msg_order && hints->rx_attr->msg_order != FI_ORDER_NONE
+           && hints->rx_attr->msg_order != FI_ORDER_SAS){
+        warn_einval("requested incompatible rx_attr->msg_order %s",
+                    fi_tostr(&hints->rx_attr->msg_order, FI_TYPE_MSG_ORDER));
         return -FI_ENODATA;
       }
     }
@@ -528,6 +557,7 @@ static int sstmac_ep_getinfo(enum fi_ep_type ep_type, uint32_t version,
 
       if (hints->domain_attr->caps) {
         if ((hints->domain_attr->caps & SSTMAC_DOM_CAPS) != SSTMAC_DOM_CAPS) {
+          warn_einval("requested more domain capabilities than sstmac supports");
           return -FI_ENODATA;
         }
         info->domain_attr->caps = hints->domain_attr->caps;
@@ -598,13 +628,7 @@ struct fi_provider sstmac_prov = {
 	.cleanup = sstmac_fini
 };
 
-__attribute__((visibility ("default"),EXTERNALLY_VISIBLE)) \
-struct fi_provider* fi_prov_ini(void)
+extern "C" struct fi_provider* fi_sstmac_ini()
 {
-	struct fi_provider *provider = NULL;
-  //sstmac_return_t status;
-  //sstmac_version_info_t lib_version;
-	int num_devices;
-	int ret;
-	return (provider);
+  return &sstmac_prov;
 }

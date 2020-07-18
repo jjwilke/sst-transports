@@ -36,10 +36,10 @@
 #define HAVE_LIBPTHREAD
 
 /* sstmac provider is built */
-#define HAVE_SSTMAC
+#define HAVE_SSTMAC 1
 
 /* sstmac provider is built as DSO */
-#define HAVE_SSTMAC_DL
+#undef HAVE_SSTMAC_DL
 
 /* define when building with FABRIC_DIRECT support */
 #define FABRIC_DIRECT_ENABLED

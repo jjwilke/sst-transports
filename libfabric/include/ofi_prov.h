@@ -48,6 +48,24 @@
  * not built: no-op call for ctor
 */
 
+
+#if (HAVE_SSTMAC) && (HAVE_SSTMAC_DL)
+#  define SSTMAC_INI FI_EXT_INI
+#  define SSTMAC_INIT NULL
+#elif (HAVE_SSTMAC)
+#  define SSTMAC_INI INI_SIG(fi_sstmac_ini)
+#  define SSTMAC_INIT fi_sstmac_ini()
+#ifdef __cplusplus
+extern "C" {
+#endif
+SSTMAC_INI ;
+#ifdef __cplusplus
+}
+#endif
+#else
+#  define SSTMAC_INIT NULL
+#endif
+
 #if (HAVE_GNI) && (HAVE_GNI_DL)
 #  define GNI_INI FI_EXT_INI
 #  define GNI_INIT NULL

@@ -205,6 +205,7 @@ extern "C" DIRECT_FN  int sstmac_av_open(struct fid_domain *domain, struct fi_av
 {
   sstmac_fid_av* av_impl = (sstmac_fid_av*) calloc(1, sizeof(sstmac_fid_av));
   av_impl->av_fid.fid.fclass = FI_CLASS_AV;
+  av_impl->domain = (sstmac_fid_domain*) domain;
   *av = (fid_av*) av_impl;
   return FI_SUCCESS;
 }
