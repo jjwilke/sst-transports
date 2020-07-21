@@ -53,7 +53,6 @@ extern "C" int
 PMI_KVS_Get( const char kvsname[], const char key[], char value[], int length)
 {
   kvs_lock.lock();
-  kvs[kvsname][key] = value;
   auto& str = kvs[kvsname][key];
   if (length < (str.length() + 1)){
     kvs_lock.unlock();

@@ -332,9 +332,6 @@ static int sstmaci_resolve_node(const char *node, const char *service,
           warn_einval("sstmac provider requires hints dest_addr to match transport rank");
           return -FI_EINVAL;
         }
-        *((fi_addr_t*)info->src_addr) = tport->rank();
-      } else {
-        // leave uninitialized
       }
 
       if (hints && hints->src_addr){
@@ -343,6 +340,7 @@ static int sstmaci_resolve_node(const char *node, const char *service,
           return -FI_EINVAL;
         }
       }
+      *((fi_addr_t*)info->dest_addr) = tport->rank();
       *((fi_addr_t*)info->src_addr) = tport->rank();
     }
   }

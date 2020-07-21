@@ -46,6 +46,7 @@ Questions? Contact sst-macro-help@sandia.gov
 #include <sstmac/software/api/api.h>
 #include <sstmac/software/process/operating_system.h>
 #include <sstmac/software/process/thread.h>
+#include "sstmac.h"
 
 FabricTransport* sstmac_fabric()
 {

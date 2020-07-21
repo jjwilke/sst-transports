@@ -231,10 +231,10 @@ struct sstmac_fid_srx {
   sstmac_fid_domain* domain;
 };
 
-#define SSTMAC_ADDR_CQ(addr)    ((addr) | 0xFFFF)
-#define SSTMAC_ADDR_RANK(addr)  (((addr) >> 32) | 0xFFFFFFFF)
-#define SSTMAC_ADDR_RANK_BITS(rank)    ((rank) << 32)
-#define SSTMAC_ADDR_CQ_BITS(cq)        (cq)
+#define GET_SSTMAC_ADDR_CQ(addr)    ((addr) & 0xFFFF)
+#define GET_SSTMAC_ADDR_RANK(addr)  (((addr) >> 32) & 0xFFFFFFFF)
+#define PUT_SSTMAC_ADDR_RANK(rank)    ((rank) << 32)
+#define PUT_SSTMAC_ADDR_CQ(cq)        (cq)
 
 #define SSTMAC_MAX_ADDR_CHARS 7
 #define SSTMAC_ADDR_FORMAT_STR "%7" PRIu64
@@ -349,8 +349,9 @@ struct RecvQueue {
   struct Recv {
     uint32_t size;
     void* buf;
-    Recv(uint32_t s, void* b) :
-      size(s), buf(b)
+    void* context;
+    Recv(uint32_t s, void* b, void* ctx) :
+      size(s), buf(b), context(ctx)
     {
     }
   };
@@ -358,10 +359,12 @@ struct RecvQueue {
   struct TaggedRecv {
     uint32_t size;
     void* buf;
+    void* context;
     uint64_t tag;
     uint64_t tag_ignore;
-    TaggedRecv(uint32_t s, void* b, uint64_t t, uint64_t ti) :
-      size(s), buf(b), tag(t), tag_ignore(ti)
+    TaggedRecv(uint32_t s, void* b, void* ctx,
+               uint64_t t, uint64_t ti) :
+      size(s), buf(b), context(ctx), tag(t), tag_ignore(ti)
     {
     }
   };
@@ -382,11 +385,12 @@ struct RecvQueue {
 
   sstmac::sw::SingleProgressQueue<sumi::Message> progress;
 
-  void finishMatch(void* buf, uint32_t size, FabricMessage* fmsg);
+  void finishMatch(void* buf, uint32_t size, void* context, FabricMessage* fmsg);
 
   void matchTaggedRecv(FabricMessage* msg);
 
-  void postRecv(uint32_t size, void* buf, uint64_t tag, uint64_t tag_ignore, bool tagged);
+  void postRecv(uint32_t size, void* buf, uint64_t tag,
+                uint64_t tag_ignore, bool tagged, void* context);
 
   void incoming(sumi::Message* msg);
 

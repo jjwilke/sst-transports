@@ -72,6 +72,12 @@ class FabricMessage : public sumi::Message {
   {
   }
 
+  NetworkMessage* cloneInjectionAck() const override {
+    auto* msg = new FabricMessage(*this);
+    msg->convertToAck();
+    return msg;
+  }
+
   uint64_t tag() const {
     return tag_;
   }
@@ -86,6 +92,10 @@ class FabricMessage : public sumi::Message {
 
   void* context() const {
     return context_;
+  }
+
+  void setContext(void* ctx) {
+    context_ = ctx;
   }
 
  private:

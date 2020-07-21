@@ -177,8 +177,8 @@ DIRECT_FN const char *sstmac_av_straddr(struct fid_av *av,
     ::strcpy(ret, (const char*)addr);
   } else if (av_impl->domain->addr_format == FI_ADDR_SSTMAC) {
     uint64_t* addr_ptr = (uint64_t*) addr;
-    uint32_t rank = SSTMAC_ADDR_RANK(*addr_ptr);
-    uint16_t cq = SSTMAC_ADDR_CQ(*addr_ptr);
+    uint32_t rank = GET_SSTMAC_ADDR_RANK(*addr_ptr);
+    uint16_t cq = GET_SSTMAC_ADDR_CQ(*addr_ptr);
     sprintf(ret, "%" PRIu32 ".%" PRIu16, rank, cq);
   } else {
     warn_einval("got addr format that isn't FI_ADDR_SSTMAC or FI_ADDR_STR");
@@ -205,6 +205,9 @@ extern "C" DIRECT_FN  int sstmac_av_open(struct fid_domain *domain, struct fi_av
 {
   sstmac_fid_av* av_impl = (sstmac_fid_av*) calloc(1, sizeof(sstmac_fid_av));
   av_impl->av_fid.fid.fclass = FI_CLASS_AV;
+  av_impl->av_fid.fid.context = context;
+  av_impl->av_fid.fid.ops = &sstmac_fi_av_ops;
+  av_impl->av_fid.ops = &sstmac_av_ops;
   av_impl->domain = (sstmac_fid_domain*) domain;
   *av = (fid_av*) av_impl;
   return FI_SUCCESS;

@@ -129,11 +129,13 @@ struct fi_ops_cm sstmac_pep_ops_cm = {
   .join = fi_no_join,
 };
 
-static int sstmaci_get_addr(uint32_t addr_format, fi_addr_t fi_addr, void* addr, size_t *addrlen)
+static int sstmaci_get_addr(uint32_t addr_format, fi_addr_t fi_addr, sstmac_fid_cq* cq,
+                            void* addr, size_t *addrlen)
 {
   int input_size = *addrlen;
+  fi_addr_t addr_bits = PUT_SSTMAC_ADDR_RANK(fi_addr) | PUT_SSTMAC_ADDR_CQ(cq->id);
   if (addr_format == FI_ADDR_STR){
-    *addrlen = sstmaci_fi_addr_to_str(fi_addr, (char*)addr, *addrlen);
+    *addrlen = sstmaci_fi_addr_to_str(addr_bits, (char*)addr, *addrlen);
     if (*addrlen > input_size){
       return -FI_ETOOSMALL;
     }
@@ -142,7 +144,7 @@ static int sstmaci_get_addr(uint32_t addr_format, fi_addr_t fi_addr, void* addr,
     if (input_size < sizeof(fi_addr_t)){
       return -FI_ETOOSMALL;
     }
-    *((fi_addr_t*)addr) = fi_addr;
+    *((fi_addr_t*)addr) = addr_bits;
   } else {
     warn_einval("got bad addr format");
     return -FI_EINVAL;
@@ -153,7 +155,7 @@ static int sstmaci_get_addr(uint32_t addr_format, fi_addr_t fi_addr, void* addr,
 EXTERN_C DIRECT_FN STATIC  int sstmac_getname(fid_t fid, void *addr, size_t *addrlen)
 {
   sstmac_fid_ep* ep = (sstmac_fid_ep*) fid;
-  return sstmaci_get_addr(ep->domain->addr_format, ep->src_addr, addr, addrlen);
+  return sstmaci_get_addr(ep->domain->addr_format, ep->src_addr, ep->recv_cq, addr, addrlen);
 }
 
 EXTERN_C DIRECT_FN STATIC  int sstmac_setname(fid_t fid, void *addr, size_t addrlen)
@@ -198,8 +200,9 @@ EXTERN_C DIRECT_FN STATIC  int sstmac_setname(fid_t fid, void *addr, size_t addr
 EXTERN_C DIRECT_FN STATIC  int sstmac_getpeer(struct fid_ep *ep, void *addr,
 				  size_t *addrlen)
 {
-  sstmac_fid_ep* ep_impl = (sstmac_fid_ep*) ep;
-  return sstmaci_get_addr(ep_impl->domain->addr_format, ep_impl->dest_addr, addr, addrlen);
+  return -FI_ENOSYS;
+  //sstmac_fid_ep* ep_impl = (sstmac_fid_ep*) ep;
+  //return sstmaci_get_addr(ep_impl->domain->addr_format, ep_impl->dest_addr, addr, addrlen);
 }
 
 EXTERN_C DIRECT_FN STATIC  int sstmac_connect(struct fid_ep */*ep*/, const void */*addr*/,

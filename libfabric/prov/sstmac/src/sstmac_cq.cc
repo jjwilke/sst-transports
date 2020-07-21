@@ -74,7 +74,7 @@ DIRECT_FN STATIC ssize_t sstmac_cq_sread(struct fid_cq *cq, void *buf,
 				       size_t count, const void *cond,
 				       int timeout);
 
-static const struct fi_ops sstmac_cq_fi_ops = {
+static struct fi_ops sstmac_cq_fi_ops = {
   .size = sizeof(struct fi_ops),
   .close = sstmac_cq_close,
   .bind = fi_no_bind,
@@ -82,7 +82,7 @@ static const struct fi_ops sstmac_cq_fi_ops = {
   .ops_open = fi_no_ops_open
 };
 
-static const struct fi_ops_cq sstmac_cq_ops = {
+static struct fi_ops_cq sstmac_cq_ops = {
   .size = sizeof(struct fi_ops_cq),
   .read = sstmac_cq_read,
   .readfrom = sstmac_cq_readfrom,
@@ -151,17 +151,21 @@ static ssize_t sstmaci_cq_read(bool blocking,
                         size_t count, fi_addr_t *src_addr,
                         const void *cond, int timeout)
 {
+  sstmac_fxn_trace(sstmaci_cq_read);
   sstmac_fid_cq* cq_impl = (sstmac_fid_cq*) cq;
   FabricTransport* tport = (FabricTransport*) cq_impl->domain->fabric->tport;
   RecvQueue* rq = (RecvQueue*) cq_impl->queue;
 
   size_t done = 0;
+  double timeout_s = (blocking && timeout > 0) ? timeout*1e-3 : -1;
   while (done < count){
-    double timeout_s = (blocking && timeout > 0) ? timeout*1e-3 : -1;
+    // pragmas attached to this could override the blocking behavior
+    tport->configureNextPoll(blocking, timeout_s);
     sumi::Message* msg = rq->progress.front(blocking, timeout_s);
     if (!msg){
       break;
     }
+    rq->progress.pop();
     if (src_addr){
       src_addr[done] = msg->sender();
     }
@@ -240,6 +244,8 @@ extern "C" DIRECT_FN  int sstmac_cq_open(struct fid_domain *domain, struct fi_cq
   cq_impl->id = id;
   cq_impl->format = attr->format;
   cq_impl->cq_fid.fid.fclass = FI_CLASS_CQ;
+  cq_impl->cq_fid.fid.ops = &sstmac_cq_fi_ops;
+  cq_impl->cq_fid.ops = &sstmac_cq_ops;
 
   struct fi_wait_attr requested = {
     .wait_obj = attr->wait_obj,
@@ -262,13 +268,14 @@ extern "C" DIRECT_FN  int sstmac_cq_open(struct fid_domain *domain, struct fi_cq
   return FI_SUCCESS;
 }
 
-void RecvQueue::finishMatch(void* buf, uint32_t size, FabricMessage *msg)
+void RecvQueue::finishMatch(void* buf, uint32_t size, void* context, FabricMessage *msg)
 {
   //found a match
   if (size >= msg->payloadBytes()){
     if (buf && msg->localBuffer()){
       msg->matchRecv(buf);
     }
+    msg->setContext(context);
     progress.incoming(msg);
   } else {
     delete msg;
@@ -280,7 +287,7 @@ void RecvQueue::matchTaggedRecv(FabricMessage* msg){
     auto tmp = it++;
     TaggedRecv& r = *tmp;
     if (matches(msg, r.tag, r.tag_ignore)){
-      finishMatch(r.buf, r.size, msg);
+      finishMatch(r.buf, r.size, r.context, msg);
       tagged_recvs.erase(tmp);
       return;
     }
@@ -288,29 +295,32 @@ void RecvQueue::matchTaggedRecv(FabricMessage* msg){
   unexp_tagged_recvs.push_back(msg);
 }
 
-void RecvQueue::postRecv(uint32_t size, void* buf, uint64_t tag, uint64_t tag_ignore, bool tagged){
+void RecvQueue::postRecv(uint32_t size, void* buf, uint64_t tag,
+                         uint64_t tag_ignore, bool tagged, void* context)
+{
   if (tagged){
     if (unexp_tagged_recvs.empty()){
-      tagged_recvs.emplace_back(size, buf, tag, tag_ignore);
+      tagged_recvs.emplace_back(size, buf, context, tag, tag_ignore);
     } else {
       for (auto it = unexp_tagged_recvs.begin(); it != unexp_tagged_recvs.end(); ++it){
         auto tmp = it++;
         FabricMessage* msg = *tmp;
         if (matches(msg, tag, tag_ignore)){
-          finishMatch(buf, size, msg);
+          finishMatch(buf, size, context, msg);
+          unexp_tagged_recvs.erase(tmp);
           return;
         }
       }
     }
     //nothing matched
-    tagged_recvs.emplace_back(size, buf, tag, tag_ignore);
+    tagged_recvs.emplace_back(size, buf, context, tag, tag_ignore);
   } else {
     if (unexp_recvs.empty()){
-      recvs.emplace_back(size, buf);
+      recvs.emplace_back(size, buf, context);
     } else {
       FabricMessage* msg = unexp_recvs.front();
-      unexp_recvs.pop_front();;
-      finishMatch(buf, size, msg);
+      unexp_recvs.pop_front();
+      finishMatch(buf, size, context, msg);
     }
   }
 }
@@ -325,7 +335,7 @@ void RecvQueue::incoming(sumi::Message* msg){
         unexp_recvs.push_back(fmsg);
       } else {
         Recv& r = recvs.front();
-        finishMatch(r.buf, r.size, fmsg);
+        finishMatch(r.buf, r.size, r.context, fmsg);
         recvs.pop_front();
       }
     }

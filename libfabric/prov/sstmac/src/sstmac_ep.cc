@@ -306,7 +306,7 @@ static ssize_t sstmaci_ep_recv(struct fid_ep* ep, void* buf, size_t len, fi_addr
   }
 
   RecvQueue* rq = (RecvQueue*) ep_impl->recv_cq->queue;
-  rq->postRecv(len, buf, tag, tag_ignore, bool(flags & FI_TAGGED));
+  rq->postRecv(len, buf, tag, tag_ignore, bool(flags & FI_TAGGED), context);
 
   return 0;
 }
@@ -347,8 +347,8 @@ static ssize_t sstmaci_ep_send(struct fid_ep* ep, const void* buf, size_t len,
   sstmac_fid_ep* ep_impl = (sstmac_fid_ep*) ep;
   FabricTransport* tport = (FabricTransport*) ep_impl->domain->fabric->tport;
 
-  uint32_t dest_rank = SSTMAC_ADDR_RANK(dest_addr);
-  uint16_t remote_cq = SSTMAC_ADDR_CQ(dest_addr);
+  uint32_t dest_rank = GET_SSTMAC_ADDR_RANK(dest_addr);
+  uint16_t remote_cq = GET_SSTMAC_ADDR_CQ(dest_addr);
 
   flags |= FI_SEND;
 
@@ -416,12 +416,12 @@ static ssize_t sstmaci_ep_read(struct fid_ep *ep, void *buf, size_t len,
   sstmac_fid_ep* ep_impl = (sstmac_fid_ep*) ep;
   FabricTransport* tport = (FabricTransport*) ep_impl->domain->fabric->tport;
 
-  uint32_t src_rank = SSTMAC_ADDR_RANK(src_addr);
+  uint32_t src_rank = GET_SSTMAC_ADDR_RANK(src_addr);
 
   uint64_t flags = 0;
   int remote_cq = sumi::Message::no_ack;
   if (ep_impl->op_flags & FI_REMOTE_READ){
-    remote_cq = SSTMAC_ADDR_CQ(src_addr);
+    remote_cq = GET_SSTMAC_ADDR_CQ(src_addr);
     flags |= FI_REMOTE_READ;
   }
   flags |= FI_READ;
@@ -468,12 +468,12 @@ static ssize_t sstmaci_ep_write(struct fid_ep *ep, const void *buf, size_t len,
 
   int remote_cq = sumi::Message::no_ack;
   if (ep_impl->op_flags & FI_REMOTE_WRITE){
-    remote_cq = SSTMAC_ADDR_CQ(dest_addr);
+    remote_cq = GET_SSTMAC_ADDR_CQ(dest_addr);
     flags |= FI_REMOTE_WRITE;
   }
   flags |= FI_WRITE;
 
-  uint32_t src_rank = SSTMAC_ADDR_RANK(dest_addr);
+  uint32_t src_rank = GET_SSTMAC_ADDR_RANK(dest_addr);
   tport->rdmaPut<FabricMessage>(src_rank, len, const_cast<void*>(buf), (void*) addr,
                                 ep_impl->send_cq->id, // rma operations go to the tx
                                 remote_cq,
@@ -782,7 +782,7 @@ extern "C" DIRECT_FN  int sstmac_ep_bind(fid_t fid, struct fid *bfid, uint64_t f
         return -FI_EINVAL;
       }
 
-      if (flags & FI_TRANSMIT) {
+      if (flags & FI_SEND) {
         if (ep->send_cq) {
           warn_einval("attempting to rebind send_cq");
           return -FI_EINVAL; //can't rebind send CQ
@@ -857,6 +857,8 @@ extern "C" DIRECT_FN  int sstmac_ep_open(struct fid_domain *domain, struct fi_in
   ep_impl->ep_fid.tagged = &sstmac_ep_tagged_ops;
   ep_impl->ep_fid.atomic = &sstmac_ep_atomic_ops;
   ep_impl->domain = (sstmac_fid_domain*) domain;
+  ep_impl->src_addr = *((fi_addr_t*)info->src_addr);
+  ep_impl->dest_addr = *((fi_addr_t*)info->dest_addr);
   ep_impl->caps = info->caps;
   if (info->tx_attr){
     ep_impl->op_flags = info->tx_attr->op_flags;
