@@ -151,7 +151,6 @@ static ssize_t sstmaci_cq_read(bool blocking,
                         size_t count, fi_addr_t *src_addr,
                         const void *cond, int timeout)
 {
-  sstmac_fxn_trace(sstmaci_cq_read);
   sstmac_fid_cq* cq_impl = (sstmac_fid_cq*) cq;
   FabricTransport* tport = (FabricTransport*) cq_impl->domain->fabric->tport;
   RecvQueue* rq = (RecvQueue*) cq_impl->queue;
