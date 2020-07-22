@@ -50,6 +50,7 @@ Questions? Contact sst-macro-help@sandia.gov
 #include <stddef.h>
 #include <errno.h>
 #include <string.h>
+#include <inttypes.h>
 
 #include <sprockit/errors.h>
 #include <sumi/message.h>
@@ -75,8 +76,13 @@ class FabricMessage : public sumi::Message {
       size_t sz = byteLength();
       ::memcpy(inject_data_, smsgBuffer(), sz);
       //clear the data buffer already there
-      setupSmsg(nullptr, sz);
+      clearSmsgBuffer();
     }
+  }
+
+  std::string toString() const override {
+    return sprockit::sprintf("libfabric message tag=%" PRIu64 " flags=%" PRIu64 " context=%p, %s",
+                             tag_, flags_, context_, sumi::Message::toString().c_str());
   }
 
   NetworkMessage* cloneInjectionAck() const override {

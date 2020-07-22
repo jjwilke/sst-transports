@@ -168,7 +168,8 @@ static ssize_t sstmaci_cq_read(bool blocking,
     if (src_addr){
       src_addr[done] = msg->sender();
     }
-    buf = sstmaci_fill_cq_entry(cq_impl->format, buf, static_cast<FabricMessage*>(msg));
+    FabricMessage* fmsg = static_cast<FabricMessage*>(msg);
+    buf = sstmaci_fill_cq_entry(cq_impl->format, buf, fmsg);
     done++;
   }
   return done ? done : -FI_EAGAIN;

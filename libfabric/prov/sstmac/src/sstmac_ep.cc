@@ -357,7 +357,7 @@ static ssize_t sstmaci_ep_send(struct fid_ep* ep, const void* buf, size_t len,
 
   int send_cq = flags & FI_INJECT ? sumi::Message::no_ack : ep_impl->send_cq->id;
 
-  tport->postSend<FabricMessage>(dest_rank, len, const_cast<void*>(buf),
+  auto* msg = tport->postSend<FabricMessage>(dest_rank, len, const_cast<void*>(buf),
                                  send_cq, // rma operations go to the tx, if applicable
                                  remote_cq, sumi::Message::pt2pt, ep_impl->qos,
                                  tag, flags, data, context);
@@ -624,7 +624,7 @@ DIRECT_FN STATIC ssize_t sstmac_ep_tinject(struct fid_ep *ep, const void *buf,
 					 uint64_t tag)
 {
   return sstmaci_ep_send(ep, buf, len, dest_addr, nullptr,
-                         tag, FabricMessage::no_imm_data, FI_INJECT);
+                         tag, FabricMessage::no_imm_data, FI_INJECT | FI_TAGGED);
 }
 
 DIRECT_FN STATIC ssize_t sstmac_ep_tinjectdata(struct fid_ep *ep, const void *buf,
@@ -632,7 +632,7 @@ DIRECT_FN STATIC ssize_t sstmac_ep_tinjectdata(struct fid_ep *ep, const void *bu
 					     fi_addr_t dest_addr, uint64_t tag)
 {
   return sstmaci_ep_send(ep, buf, len, dest_addr, nullptr, tag,
-                         data, FI_INJECT | FI_REMOTE_CQ_DATA);
+                         data, FI_INJECT | FI_REMOTE_CQ_DATA | FI_TAGGED);
 }
 
 extern "C" DIRECT_FN  int sstmac_ep_atomic_valid(struct fid_ep *ep,

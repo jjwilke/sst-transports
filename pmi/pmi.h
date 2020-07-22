@@ -18,7 +18,7 @@ int PMI_Abort(int exit_code, const char error_msg[]);
 
 int PMI_Barrier();
 
-int PMI_Init();
+int PMI_Init(int* spawned);
 
 int PMI_Finalize();
 

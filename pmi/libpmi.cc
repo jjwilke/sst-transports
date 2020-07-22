@@ -144,9 +144,11 @@ PMI_Get_nidlist_ptr(void** nidlist)
   return PMI_SUCCESS;
 }
 
-extern "C" int PMI_Init()
+extern "C" int PMI_Init(int* spawned)
 {
   sstmac_pmi()->init();
+  // SST does not treat processes as being spawned
+  *spawned = 0;
   return PMI_SUCCESS;
 }
 
