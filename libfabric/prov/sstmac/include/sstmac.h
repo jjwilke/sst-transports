@@ -347,24 +347,26 @@ struct ErrorDeallocate {
 struct RecvQueue {
 
   struct Recv {
+    uint32_t addr;
     uint32_t size;
     void* buf;
     void* context;
-    Recv(uint32_t s, void* b, void* ctx) :
-      size(s), buf(b), context(ctx)
+    Recv(uint32_t a, uint32_t s, void* b, void* ctx) :
+      addr(a), size(s), buf(b), context(ctx)
     {
     }
   };
 
   struct TaggedRecv {
+    uint32_t addr;
     uint32_t size;
     void* buf;
     void* context;
     uint64_t tag;
     uint64_t tag_ignore;
-    TaggedRecv(uint32_t s, void* b, void* ctx,
+    TaggedRecv(uint32_t a, uint32_t s, void* b, void* ctx,
                uint64_t t, uint64_t ti) :
-      size(s), buf(b), context(ctx), tag(t), tag_ignore(ti)
+      addr(a), size(s), buf(b), context(ctx), tag(t), tag_ignore(ti)
     {
     }
   };
@@ -374,8 +376,11 @@ struct RecvQueue {
   {
   }
 
-  bool matches(FabricMessage* msg, uint64_t tag, uint64_t ignore){
-    return (msg->tag() & ~ignore) == (tag & ~ignore);
+  bool matches(FabricMessage* msg, uint32_t addr, uint64_t tag, uint64_t ignore){
+    bool tag_match = (msg->tag() & ~ignore) == (tag & ~ignore);
+    //either a specific addr or UNSPEC (which is all 1s)
+    bool src_match = (msg->sender() & addr) == msg->sender();
+    return tag_match && src_match;
   }
 
   std::list<Recv> recvs;
@@ -389,7 +394,7 @@ struct RecvQueue {
 
   void matchTaggedRecv(FabricMessage* msg);
 
-  void postRecv(uint32_t size, void* buf, uint64_t tag,
+  void postRecv(uint32_t addr, uint32_t size, void* buf, uint64_t tag,
                 uint64_t tag_ignore, bool tagged, void* context);
 
   void incoming(sumi::Message* msg);

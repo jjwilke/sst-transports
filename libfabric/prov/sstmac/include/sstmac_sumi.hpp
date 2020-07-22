@@ -55,6 +55,7 @@ Questions? Contact sst-macro-help@sandia.gov
 #include <sumi/message.h>
 #include <sumi/transport.h>
 #include <sumi/sim_transport.h>
+#include <rdma/fabric.h>
 
 class FabricMessage : public sumi::Message {
  public:
@@ -70,12 +71,25 @@ class FabricMessage : public sumi::Message {
     imm_data_(imm_data),
     context_(ctx)
   {
+    if (flags & FI_INJECT){
+      size_t sz = byteLength();
+      ::memcpy(inject_data_, smsgBuffer(), sz);
+      //clear the data buffer already there
+      setupSmsg(nullptr, sz);
+    }
   }
 
   NetworkMessage* cloneInjectionAck() const override {
     auto* msg = new FabricMessage(*this);
     msg->convertToAck();
     return msg;
+  }
+
+  void matchRecv(void* buf){
+    if (flags_ & FI_INJECT){
+      ::memcpy(buf, &inject_data_, byteLength());
+    }
+    sumi::Message::matchRecv(buf);
   }
 
   uint64_t tag() const {
@@ -98,11 +112,13 @@ class FabricMessage : public sumi::Message {
     context_ = ctx;
   }
 
+
  private:
   uint64_t flags_;
   uint64_t imm_data_;
   uint64_t tag_;
   void* context_;
+  char inject_data_[8];
 };
 
 class FabricTransport : public sumi::SimTransport {

@@ -301,12 +301,10 @@ static ssize_t sstmaci_ep_recv(struct fid_ep* ep, void* buf, size_t len, fi_addr
   sstmac_fid_ep* ep_impl = (sstmac_fid_ep*) ep;
   FabricTransport* tport = (FabricTransport*) ep_impl->domain->fabric->tport;
 
-  if (src_addr != FI_ADDR_UNSPEC){
-    return -FI_EINVAL;
-  }
+  uint32_t addr_bits = GET_SSTMAC_ADDR_RANK(src_addr);
 
   RecvQueue* rq = (RecvQueue*) ep_impl->recv_cq->queue;
-  rq->postRecv(len, buf, tag, tag_ignore, bool(flags & FI_TAGGED), context);
+  rq->postRecv(addr_bits, len, buf, tag, tag_ignore, bool(flags & FI_TAGGED), context);
 
   return 0;
 }
@@ -337,7 +335,12 @@ DIRECT_FN STATIC ssize_t sstmac_ep_recvmsg(struct fid_ep *ep,
 					 const struct fi_msg *msg,
 					 uint64_t flags)
 {
-  return -FI_ENOSYS;
+  if (flags){
+    warn_einval("recvmsg does not yet support claim, peek, and discard");
+    return -FI_ENOSYS;
+  }
+  return sstmac_ep_recvv(ep, msg->msg_iov, msg->desc,
+                         msg->iov_count, msg->addr, msg->context);
 }
 
 static ssize_t sstmaci_ep_send(struct fid_ep* ep, const void* buf, size_t len,
@@ -352,10 +355,12 @@ static ssize_t sstmaci_ep_send(struct fid_ep* ep, const void* buf, size_t len,
 
   flags |= FI_SEND;
 
+  int send_cq = flags & FI_INJECT ? sumi::Message::no_ack : ep_impl->send_cq->id;
+
   tport->postSend<FabricMessage>(dest_rank, len, const_cast<void*>(buf),
-                                 ep_impl->send_cq->id, // rma operations go to the tx
+                                 send_cq, // rma operations go to the tx, if applicable
                                  remote_cq, sumi::Message::pt2pt, ep_impl->qos,
-                                 tag, FabricMessage::no_imm_data, flags, context);
+                                 tag, flags, data, context);
   return 0;
 }
 
@@ -406,7 +411,8 @@ DIRECT_FN STATIC ssize_t
 sstmac_ep_msg_injectdata(struct fid_ep *ep, const void *buf, size_t len,
 		       uint64_t data, fi_addr_t dest_addr)
 {
-  return -FI_ENOSYS;
+  return sstmaci_ep_send(ep, buf, len, dest_addr, nullptr,
+                         FabricMessage::no_tag, data, FI_REMOTE_CQ_DATA | FI_INJECT);
 }
 
 static ssize_t sstmaci_ep_read(struct fid_ep *ep, void *buf, size_t len,
@@ -559,7 +565,13 @@ DIRECT_FN STATIC ssize_t sstmac_ep_trecvmsg(struct fid_ep *ep,
 					  const struct fi_msg_tagged *msg,
 					  uint64_t flags)
 {
-  return -FI_ENOSYS;
+  if (flags){
+    warn_einval("trecvmsg does not yet support claim, peek, and discard");
+    return -FI_ENOSYS;
+  }
+  return sstmac_ep_trecvv(ep, msg->msg_iov, msg->desc,
+                          msg->iov_count, msg->addr,
+                          msg->tag, msg->ignore, msg->context);
 }
 
 DIRECT_FN STATIC ssize_t sstmac_ep_tsend(struct fid_ep *ep, const void *buf,
@@ -589,7 +601,12 @@ DIRECT_FN STATIC ssize_t sstmac_ep_tsendmsg(struct fid_ep *ep,
 					  const struct fi_msg_tagged *msg,
 					  uint64_t flags)
 {
-  return -FI_ENOSYS;
+  if (flags){
+    warn_einval("sstmac fi_tsendmsg does not support flags");
+    return -FI_ENOSYS;
+  }
+  return sstmac_ep_tsendv(ep, msg->msg_iov, msg->desc, msg->iov_count,
+                          msg->addr, msg->tag, msg->context);
 }
 
 
@@ -606,14 +623,16 @@ DIRECT_FN STATIC ssize_t sstmac_ep_tinject(struct fid_ep *ep, const void *buf,
 					 size_t len, fi_addr_t dest_addr,
 					 uint64_t tag)
 {
-  return -FI_ENOSYS;
+  return sstmaci_ep_send(ep, buf, len, dest_addr, nullptr,
+                         tag, FabricMessage::no_imm_data, FI_INJECT);
 }
 
 DIRECT_FN STATIC ssize_t sstmac_ep_tinjectdata(struct fid_ep *ep, const void *buf,
 					     size_t len, uint64_t data,
 					     fi_addr_t dest_addr, uint64_t tag)
 {
-  return -FI_ENOSYS;
+  return sstmaci_ep_send(ep, buf, len, dest_addr, nullptr, tag,
+                         data, FI_INJECT | FI_REMOTE_CQ_DATA);
 }
 
 extern "C" DIRECT_FN  int sstmac_ep_atomic_valid(struct fid_ep *ep,
