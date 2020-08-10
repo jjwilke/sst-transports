@@ -74,9 +74,11 @@ class FabricMessage : public sumi::Message {
   {
     if (flags & FI_INJECT){
       size_t sz = byteLength();
-      ::memcpy(inject_data_, smsgBuffer(), sz);
-      //clear the data buffer already there
-      clearSmsgBuffer();
+      if (smsgBuffer()){
+        ::memcpy(inject_data_, smsgBuffer(), sz);
+        //clear the data buffer already there
+        clearSmsgBuffer();
+      }
     }
   }
 
