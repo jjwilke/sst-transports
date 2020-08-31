@@ -284,13 +284,12 @@ void RecvQueue::finishMatch(void* buf, uint32_t size, void* context, FabricMessa
 
 void RecvQueue::matchTaggedRecv(FabricMessage* msg){
   for (auto it = tagged_recvs.begin(); it != tagged_recvs.end(); ++it){
-    auto tmp = it++;
-    TaggedRecv& r = *tmp;
-    //printf("Checking stag=%" PRIu64 " against rtag=%" PRIu64 " ignore=%" PRIu64 "\n",
-    //       msg->tag(), r.tag, r.tag_ignore);
+    TaggedRecv& r = *it;
+    //printf("Checking stag=%" PRIu64 " against rtag=%" PRIu64 " ignore=%" PRIu64 " on context=%p\n",
+    //       msg->tag(), r.tag, r.tag_ignore, r.context);
     if (matches(msg, r.addr, r.tag, r.tag_ignore)){
       finishMatch(r.buf, r.size, r.context, msg);
-      tagged_recvs.erase(tmp);
+      tagged_recvs.erase(it);
       return;
     }
   }
@@ -301,19 +300,16 @@ void RecvQueue::postRecv(uint32_t addr, uint32_t size, void* buf, uint64_t tag,
                          uint64_t tag_ignore, bool tagged, void* context)
 {
   if (tagged){
-    if (unexp_tagged_recvs.empty()){
-      tagged_recvs.emplace_back(addr, size, buf, context, tag, tag_ignore);
-    } else {
-      for (auto it = unexp_tagged_recvs.begin(); it != unexp_tagged_recvs.end(); ++it){
-        auto tmp = it++;
-        FabricMessage* msg = *tmp;
-        if (matches(msg, addr, tag, tag_ignore)){
-          finishMatch(buf, size, context, msg);
-          unexp_tagged_recvs.erase(tmp);
-          return;
-        }
+    for (auto it = unexp_tagged_recvs.begin(); it != unexp_tagged_recvs.end(); ++it){
+      FabricMessage* msg = *it;
+      if (matches(msg, addr, tag, tag_ignore)){
+        finishMatch(buf, size, context, msg);
+        unexp_tagged_recvs.erase(it);
+        return;
       }
     }
+    //printf("adding recv stag=%" PRIu64 " ignore=%" PRIu64 " on context=%p\n",
+     //      tag, tag_ignore, context);
     //nothing matched
     tagged_recvs.emplace_back(addr, size, buf, context, tag, tag_ignore);
   } else {
