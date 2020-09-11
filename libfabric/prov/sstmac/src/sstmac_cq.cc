@@ -272,7 +272,7 @@ void RecvQueue::finishMatch(void* buf, uint32_t size, void* context, FabricMessa
 {
   //found a match
   if (size >= msg->payloadBytes()){
-    if (buf && msg->localBuffer()){
+    if (isNonNullBuffer(buf)){
       msg->matchRecv(buf);
     }
     msg->setContext(context);
@@ -285,8 +285,6 @@ void RecvQueue::finishMatch(void* buf, uint32_t size, void* context, FabricMessa
 void RecvQueue::matchTaggedRecv(FabricMessage* msg){
   for (auto it = tagged_recvs.begin(); it != tagged_recvs.end(); ++it){
     TaggedRecv& r = *it;
-    //printf("Checking stag=%" PRIu64 " against rtag=%" PRIu64 " ignore=%" PRIu64 " on context=%p\n",
-    //       msg->tag(), r.tag, r.tag_ignore, r.context);
     if (matches(msg, r.addr, r.tag, r.tag_ignore)){
       finishMatch(r.buf, r.size, r.context, msg);
       tagged_recvs.erase(it);
@@ -308,8 +306,6 @@ void RecvQueue::postRecv(uint32_t addr, uint32_t size, void* buf, uint64_t tag,
         return;
       }
     }
-    //printf("adding recv stag=%" PRIu64 " ignore=%" PRIu64 " on context=%p\n",
-     //      tag, tag_ignore, context);
     //nothing matched
     tagged_recvs.emplace_back(addr, size, buf, context, tag, tag_ignore);
   } else {

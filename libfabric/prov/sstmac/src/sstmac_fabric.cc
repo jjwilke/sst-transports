@@ -370,9 +370,10 @@ static int sstmac_ep_getinfo(enum fi_ep_type ep_type, uint32_t version,
   if ((hints && hints->ep_attr) &&
       (hints->ep_attr->type != FI_EP_UNSPEC &&
        hints->ep_attr->type != ep_type)) {
-    warn_einval("given ep_type %s does not match hints %s",
-                std::string(fi_tostr(&ep_type, FI_TYPE_EP_TYPE)).c_str(),
-                std::string(fi_tostr(&hints->ep_attr->type, FI_TYPE_EP_TYPE)).c_str());
+    //suppress this warning for now
+    //warn_einval("given ep_type %s does not match hints %s",
+    //            std::string(fi_tostr(&ep_type, FI_TYPE_EP_TYPE)).c_str(),
+    //            std::string(fi_tostr(&hints->ep_attr->type, FI_TYPE_EP_TYPE)).c_str());
     return -FI_ENODATA;
   }
 

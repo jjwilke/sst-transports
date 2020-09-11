@@ -74,7 +74,7 @@ class FabricMessage : public sumi::Message {
   {
     if (flags & FI_INJECT){
       size_t sz = byteLength();
-      if (smsgBuffer()){
+      if (isNonNullBuffer(smsgBuffer())){
         ::memcpy(inject_data_, smsgBuffer(), sz);
         //clear the data buffer already there
         clearSmsgBuffer();
@@ -95,7 +95,9 @@ class FabricMessage : public sumi::Message {
 
   void matchRecv(void* buf){
     if (flags_ & FI_INJECT){
-      ::memcpy(buf, &inject_data_, byteLength());
+      if (isNonNullBuffer(buf)){
+        ::memcpy(buf, inject_data_, byteLength());
+      }
     }
     sumi::Message::matchRecv(buf);
   }
@@ -126,7 +128,7 @@ class FabricMessage : public sumi::Message {
   uint64_t imm_data_;
   uint64_t tag_;
   void* context_;
-  char inject_data_[8];
+  char inject_data_[64];
 };
 
 class FabricTransport : public sumi::SimTransport {

@@ -906,12 +906,14 @@ extern "C" DIRECT_FN  int sstmac_ep_open(struct fid_domain *domain, struct fi_in
 
 DIRECT_FN STATIC ssize_t sstmac_ep_cancel(fid_t fid, void *context)
 {
-  return -FI_ENOSYS;
+  //just don't do anything, good enough for now
+  return FI_SUCCESS;
 }
 
 ssize_t sstmac_cancel(fid_t fid, void *context)
 {
-  return -FI_ENOSYS;
+  //just don't do anything, good enough for now
+  return FI_SUCCESS;
 }
 
 static int
