@@ -57,6 +57,7 @@ Questions? Contact sst-macro-help@sandia.gov
 #include <sumi/transport.h>
 #include <sumi/sim_transport.h>
 #include <rdma/fabric.h>
+#include <sstmac/common/stats/stat_collector.h>
 
 class FabricMessage : public sumi::Message {
  public:
@@ -160,9 +161,25 @@ class FabricTransport : public sumi::SimTransport {
     return inited_;
   }
 
+  using DelayStat = SST::Statistics::MultiStatistic<int, //sender
+  int, //recver
+  uint64_t, //byte length
+  double, //total delay
+  double, //injection delay
+  double, //contention delay
+  double, //total network delay
+  double //synchronization delay
+ >;
+
+  DelayStat* delayStat() const {
+    return delays_;
+  }
+
  private:
   bool inited_;
   std::vector<FabricMessage*> unmatched_recvs_;
+  DelayStat* delays_;
+
 };
 
 FabricTransport* sstmac_fabric();

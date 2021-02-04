@@ -169,6 +169,13 @@ static ssize_t sstmaci_cq_read(bool blocking,
       src_addr[done] = msg->sender();
     }
     FabricMessage* fmsg = static_cast<FabricMessage*>(msg);
+    auto* stat = tport->delayStat();
+    stat->addData(fmsg->sender(), fmsg->recver(), fmsg->byteLength(),
+                  (tport->now() - fmsg->timeStarted()).sec(), // total delay
+                  fmsg->injectionDelay().sec(), // injection contention delay
+                  fmsg->congestionDelay().sec(), // network contention delay
+                  (fmsg->timeArrived() - fmsg->timeStarted()).sec(), // total network delay
+                  (tport->now() - fmsg->timeArrived()).sec() ); // synchronization delay
     buf = sstmaci_fill_cq_entry(cq_impl->format, buf, fmsg);
     done++;
   }
