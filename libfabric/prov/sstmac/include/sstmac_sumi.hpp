@@ -135,6 +135,16 @@ class FabricMessage : public sumi::Message {
 class FabricTransport : public sumi::SimTransport {
 
  public:
+  using DelayStat = SST::Statistics::MultiStatistic<int, //sender
+   int, //recver
+   uint64_t, //byte length
+   double, //total delay
+   double, //injection delay
+   double, //contention delay
+   double, //total network delay
+   double //synchronization delay
+  >;
+
   SST_ELI_REGISTER_DERIVED(
     API,
     FabricTransport,
@@ -161,15 +171,7 @@ class FabricTransport : public sumi::SimTransport {
     return inited_;
   }
 
-  using DelayStat = SST::Statistics::MultiStatistic<int, //sender
-  int, //recver
-  uint64_t, //byte length
-  double, //total delay
-  double, //injection delay
-  double, //contention delay
-  double, //total network delay
-  double //synchronization delay
- >;
+
 
   DelayStat* delayStat() const {
     return delays_;
@@ -181,6 +183,99 @@ class FabricTransport : public sumi::SimTransport {
   DelayStat* delays_;
 
 };
+
+class FabricDelayStat : public FabricTransport::DelayStat {
+ public:
+  using Parent=FabricTransport::DelayStat;
+
+  struct Message {
+    int src;
+    int dst;
+    uint64_t length;
+    double total_delay;
+    double inj_delay;
+    double contention_delay;
+    double total_network_delay;
+    double sync_delay;
+    Message(int s, int d, uint64_t l,
+            double td, double id, double cd,
+            double tnd, double sd) :
+      src(s), dst(d), length(l),
+      total_delay(td), inj_delay(id), contention_delay(cd),
+      total_network_delay(tnd), sync_delay(sd)
+    {
+    }
+  };
+
+  SST_ELI_REGISTER_MULTI_STATISTIC(
+    Parent,
+    FabricDelayStat,
+    "libfabric",
+    "delays",
+    SST_ELI_ELEMENT_VERSION(1,0,0),
+    "delay stats for individual messages")
+
+  FabricDelayStat(SST::BaseComponent* comp, const std::string& name,
+              const std::string& subName, SST::Params& params);
+
+  ~FabricDelayStat() override{}
+
+  void addData_impl(int src, int dst,
+                    uint64_t bytes,
+                    double total_delay,
+                    double injection_delay, double contention_delay,
+                    double total_network_delay, double sync_delay) override;
+
+  void registerOutputFields(SST::Statistics::StatisticFieldsOutput *statOutput) override;
+
+  void outputStatisticFields(SST::Statistics::StatisticFieldsOutput *output, bool endOfSimFlag) override;
+
+  std::vector<Message>::const_iterator begin() const {
+    return messages_.begin();
+  }
+
+  std::vector<Message>::const_iterator end() const {
+    return messages_.end();
+  }
+
+ private:
+  std::vector<Message> messages_;
+
+};
+
+class FabricDelayStatOutput : public sstmac::StatisticOutput
+{
+ public:
+  SST_ELI_REGISTER_DERIVED(
+    SST::Statistics::StatisticOutput,
+    FabricDelayStatOutput,
+    "macro",
+    "message_delay",
+    SST_ELI_ELEMENT_VERSION(1,0,0),
+    "Dumps a CSV file with all the point-to-point stats")
+
+  FabricDelayStatOutput(SST::Params& params);
+
+  ~FabricDelayStatOutput() override{}
+
+  void registerStatistic(SST::Statistics::StatisticBase*) override {}
+
+  void startOutputGroup(SST::Statistics::StatisticGroup*) override;
+  void stopOutputGroup() override;
+
+  void output(SST::Statistics::StatisticBase* statistic, bool endOfSimFlag) override;
+
+  bool checkOutputParameters() override { return true; }
+  void startOfSimulation() override {}
+  void endOfSimulation() override {}
+  void printUsage() override {}
+
+ private:
+  std::ofstream out_;
+
+};
+
+
 
 FabricTransport* sstmac_fabric();
 

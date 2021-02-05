@@ -57,5 +57,73 @@ FabricTransport* sstmac_fabric()
   return tp;
 }
 
+FabricDelayStat::FabricDelayStat(SST::BaseComponent* comp, const std::string& name,
+            const std::string& subName, SST::Params& params)
+  : Parent(comp, name, subName, params)
+{
+}
+
+void
+FabricDelayStat::addData_impl(int src, int dst,
+                             uint64_t bytes,
+                             double total_delay,
+                             double injection_delay, double contention_delay,
+                             double total_network_delay, double sync_delay)
+{
+  messages_.emplace_back(src, dst, bytes, total_delay,
+                         injection_delay, contention_delay, total_network_delay, sync_delay);
+}
+
+
+void
+FabricDelayStat::registerOutputFields(SST::Statistics::StatisticFieldsOutput * /*statOutput*/)
+{
+  sprockit::abort("FabricDelayStat::registerOutputFields: should not be called");
+}
+
+void
+FabricDelayStat::outputStatisticFields(SST::Statistics::StatisticFieldsOutput * /*output*/, bool  /*endOfSimFlag*/)
+{
+  sprockit::abort("FabricDelayStat::outputStatisticData: should not be called");
+}
+
+FabricDelayStatOutput::FabricDelayStatOutput(SST::Params& params) :
+    sstmac::StatisticOutput(params)
+{
+}
+
+void
+FabricDelayStatOutput::startOutputGroup(sstmac::StatisticGroup *grp)
+{
+  auto outfile = grp->name + ".csv";
+  out_.open(outfile);
+  out_ << "component,src,dst,size,total_delay,injection,network,total_network,sync";
+}
+
+void
+FabricDelayStatOutput::stopOutputGroup()
+{
+  out_.close();
+}
+
+void
+FabricDelayStatOutput::output(SST::Statistics::StatisticBase* statistic, bool  /*endOfSimFlag*/)
+{
+  FabricDelayStat* stats = dynamic_cast<FabricDelayStat*>(statistic);
+  for (auto iter=stats->begin(); iter != stats->end(); ++iter){
+    const FabricDelayStat::Message& m = *iter;
+    out_ << "\n" << stats->getStatSubId()
+         << "," << m.src
+         << "," << m.dst
+         << "," << m.length
+         << "," << m.total_delay
+         << "," << m.inj_delay
+         << "," << m.contention_delay
+         << "," << m.total_network_delay
+         << "," << m.sync_delay
+    ;
+  }
+}
+
 constexpr uint64_t FabricMessage::no_tag;
 constexpr uint64_t FabricMessage::no_imm_data;
