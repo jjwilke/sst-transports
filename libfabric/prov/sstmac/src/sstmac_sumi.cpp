@@ -44,6 +44,7 @@ Questions? Contact sst-macro-help@sandia.gov
 
 #include <sstmac_sumi.hpp>
 #include <sstmac/software/api/api.h>
+#include <sstmac/software/process/app.h>
 #include <sstmac/software/process/operating_system.h>
 #include <sstmac/software/process/thread.h>
 #include "sstmac.h"
@@ -55,6 +56,18 @@ FabricTransport* sstmac_fabric()
   if (!tp->inited())
     tp->init();
   return tp;
+}
+
+FabricTransport::FabricTransport(SST::Params& params,
+                sstmac::sw::App* parent,
+                SST::Component* comp) :
+  sumi::SimTransport(params, parent, comp),
+  inited_(false)
+{
+  std::string sub_id = std::to_string(parent->aid());
+  delays_ = comp->registerMultiStatistic<
+              int,int,uint64_t,
+              double,double,double,double,double>(params, "delays", sub_id);
 }
 
 FabricDelayStat::FabricDelayStat(SST::BaseComponent* comp, const std::string& name,
@@ -110,18 +123,20 @@ void
 FabricDelayStatOutput::output(SST::Statistics::StatisticBase* statistic, bool  /*endOfSimFlag*/)
 {
   FabricDelayStat* stats = dynamic_cast<FabricDelayStat*>(statistic);
-  for (auto iter=stats->begin(); iter != stats->end(); ++iter){
-    const FabricDelayStat::Message& m = *iter;
-    out_ << "\n" << stats->getStatSubId()
-         << "," << m.src
-         << "," << m.dst
-         << "," << m.length
-         << "," << m.total_delay
-         << "," << m.inj_delay
-         << "," << m.contention_delay
-         << "," << m.total_network_delay
-         << "," << m.sync_delay
-    ;
+  if (stats){
+    for (auto iter=stats->begin(); iter != stats->end(); ++iter){
+      const FabricDelayStat::Message& m = *iter;
+      out_ << "\n" << stats->getStatSubId()
+           << "," << m.src
+           << "," << m.dst
+           << "," << m.length
+           << "," << m.total_delay
+           << "," << m.inj_delay
+           << "," << m.contention_delay
+           << "," << m.total_network_delay
+           << "," << m.sync_delay
+      ;
+    }
   }
 }
 

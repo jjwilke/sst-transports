@@ -156,11 +156,7 @@ class FabricTransport : public sumi::SimTransport {
   public:
     FabricTransport(SST::Params& params,
                     sstmac::sw::App* parent,
-                    SST::Component* comp) :
-      sumi::SimTransport(params, parent, comp),
-      inited_(false)
-  {
-  }
+                    SST::Component* comp);
 
   void init() override {
     sumi::SimTransport::init();
@@ -210,7 +206,7 @@ class FabricDelayStat : public FabricTransport::DelayStat {
   SST_ELI_REGISTER_MULTI_STATISTIC(
     Parent,
     FabricDelayStat,
-    "libfabric",
+    "macro",
     "delays",
     SST_ELI_ELEMENT_VERSION(1,0,0),
     "delay stats for individual messages")
